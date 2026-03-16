@@ -12,7 +12,9 @@
       "Bash(ICONS=src-tauri/icons)",
       "Bash(sips -z 32 32 \"$SRC\" --out \"$ICONS/32x32.png\")",
       "Bash(sips -z 128 128 \"$SRC\" --out \"$ICONS/128x128.png\")",
-      "Bash(sips -z 256 256 \"$SRC\" --out \"$ICONS/128x128@2x.png\")"
+      "Bash(sips -z 256 256 \"$SRC\" --out \"$ICONS/128x128@2x.png\")",
+      "Bash(python3 -m venv .venv)",
+      "Bash(.venv/bin/pip install:*)"
     ]
   }
 }

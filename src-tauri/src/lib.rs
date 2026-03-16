@@ -164,9 +164,10 @@ async fn test_connection(profile: serde_json::Value) -> Result<String, String> {
 
     let host_json = serde_json::to_string(&profile).map_err(|e| e.to_string())?;
 
-    let mut cmd = std::process::Command::new("python3");
+    let (python_bin, script) = ssh_bridge::sidecar_paths();
+    let mut cmd = std::process::Command::new(python_bin.to_str().unwrap_or("python3"));
     cmd.arg("-u")
-        .arg(ssh_bridge::sidecar_script().to_str().unwrap_or("sidecar/main.py"))
+        .arg(script.to_str().unwrap_or("sidecar/main.py"))
         .arg("--host-json")
         .arg(&host_json)
         .arg("--session-id")

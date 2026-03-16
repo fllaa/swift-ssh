@@ -11,26 +11,41 @@ pub fn storage_dir() -> PathBuf {
     base.join("SwiftSSH")
 }
 
-pub fn sidecar_script() -> PathBuf {
-    let dev_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+/// Returns (python_binary, script_path) for the sidecar.
+/// Uses the bundled venv Python so paramiko is always available.
+pub fn sidecar_paths() -> (PathBuf, PathBuf) {
+    let project_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap_or(&PathBuf::from("."))
-        .join("sidecar")
-        .join("main.py");
-    if dev_path.exists() {
-        return dev_path;
+        .to_path_buf();
+
+    let sidecar_dir = project_root.join("sidecar");
+    let script = sidecar_dir.join("main.py");
+    let venv_python = sidecar_dir.join(".venv").join("bin").join("python3");
+
+    if venv_python.exists() && script.exists() {
+        eprintln!("[ssh_bridge] using venv python: {:?}", venv_python);
+        return (venv_python, script);
     }
 
+    // Production: look relative to the executable
     if let Ok(exe) = std::env::current_exe() {
         let exe_dir = exe.parent().unwrap_or(&PathBuf::from(".")).to_path_buf();
-        let prod_path = exe_dir.join("sidecar").join("main.py");
-        if prod_path.exists() {
-            return prod_path;
+        let prod_sidecar = exe_dir.join("sidecar");
+        let prod_script = prod_sidecar.join("main.py");
+        let prod_venv = prod_sidecar.join(".venv").join("bin").join("python3");
+        if prod_venv.exists() && prod_script.exists() {
+            eprintln!("[ssh_bridge] using prod venv python: {:?}", prod_venv);
+            return (prod_venv, prod_script);
+        }
+        if prod_script.exists() {
+            eprintln!("[ssh_bridge] WARNING: no venv found, using system python3");
+            return (PathBuf::from("python3"), prod_script);
         }
     }
 
-    eprintln!("[ssh_bridge] WARNING: sidecar_script using fallback path");
-    PathBuf::from("sidecar/main.py")
+    eprintln!("[ssh_bridge] WARNING: using fallback paths");
+    (PathBuf::from("python3"), PathBuf::from("sidecar/main.py"))
 }
 
 struct Session {
@@ -82,12 +97,13 @@ impl SshBridge {
         }
 
         let host_json = serde_json::to_string(&host).map_err(|e| e.to_string())?;
-        let script = sidecar_script();
+        let (python_bin, script) = sidecar_paths();
+        let python_str = python_bin.to_str().unwrap_or("python3");
         let script_str = script.to_str().unwrap_or("sidecar/main.py");
 
-        eprintln!("[ssh_bridge] spawning sidecar: {}", script_str);
+        eprintln!("[ssh_bridge] spawning sidecar: {} {}", python_str, script_str);
 
-        let mut cmd = Command::new("python3");
+        let mut cmd = Command::new(python_str);
         cmd.arg("-u")
             .arg(script_str)
             .arg("--host-json")
