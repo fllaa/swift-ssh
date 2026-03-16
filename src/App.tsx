@@ -82,11 +82,18 @@ export default function App() {
         data-tauri-drag-region
         className={`h-10 flex items-center pr-4 bg-[#0B1021] shrink-0 border-b border-slate-800 transition-all duration-300 ${isFullscreen ? "pl-4" : "pl-[84px]"}`}
       >
-        {/* Vault Dropdown */}
-        <div className="flex items-center space-x-2 px-3 py-1 bg-card-slate rounded-md cursor-pointer border border-slate-700 hover:border-slate-500 transition-colors text-sm font-medium shrink-0">
-          <Cloud className="w-4 h-4 text-slate-400" />
-          <span>{activeVault?.name || "Main Vault"}</span>
-          <ChevronDown className="w-3 h-3 text-slate-500" />
+        {/* Vault Button Group */}
+        <div className="flex items-stretch shrink-0 -space-x-px h-7" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+          <button 
+            onClick={() => setActiveTab(null)}
+            className="relative z-10 flex items-center space-x-2 px-3 bg-card-slate rounded-l-md cursor-pointer border border-slate-700 hover:bg-slate-800/50 hover:border-slate-500 hover:z-20 transition-all text-sm font-medium shrink-0"
+          >
+            <Cloud className="w-4 h-4 text-slate-400" />
+            <span>{activeVault?.name || "Main Vault"}</span>
+          </button>
+          <button className="relative z-10 flex items-center justify-center px-2 bg-card-slate rounded-r-md cursor-pointer border border-slate-700 hover:bg-slate-800/50 hover:border-slate-500 hover:z-20 transition-all text-sm font-medium shrink-0">
+            <ChevronDown className="w-3 h-3 text-slate-500" />
+          </button>
         </div>
 
         {/* Separator inside Title bar */}
@@ -137,21 +144,23 @@ export default function App() {
 
       {/* Main App Row */}
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar
-          onAddHost={() => {
-            setEditHost(null);
-            setShowAddHost(true);
-          }}
-          onEditHost={(host) => {
-            setEditHost(host);
-            setShowAddHost(true);
-          }}
-        />
+        {activeTabId === null && (
+          <Sidebar
+            onAddHost={() => {
+              setEditHost(null);
+              setShowAddHost(true);
+            }}
+            onEditHost={(host) => {
+              setEditHost(host);
+              setShowAddHost(true);
+            }}
+          />
+        )}
 
         {/* Main content */}
         <main className="flex-1 flex flex-col overflow-hidden min-w-0">
           {/* Top Bar for Dashboard */}
-          {tabs.length === 0 && (
+          {activeTabId === null && (
             <header className="h-16 flex items-center justify-between px-8 bg-space-dark border-b border-slate-800 shrink-0">
               <div className="flex items-center flex-1 max-w-xl">
                 <div className="relative w-full">
@@ -199,7 +208,7 @@ export default function App() {
               </div>
             ))}
 
-            {tabs.length === 0 && (
+            {activeTabId === null && (
               <Dashboard 
                 onEditHost={(host) => {
                   setEditHost(host);
