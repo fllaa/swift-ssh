@@ -9,6 +9,18 @@ export interface HostProfile {
   authMethod: "password" | "key";
   password?: string;
   keyId?: string;
+  groupId?: string;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  vaultId: string;
+}
+
+export interface Vault {
+  id: string;
+  name: string;
 }
 
 export interface SSHKey {
@@ -29,6 +41,9 @@ export interface TabSession {
 interface AppState {
   hosts: HostProfile[];
   keys: SSHKey[];
+  groups: Group[];
+  vaults: Vault[];
+  activeVaultId: string | null;
   tabs: TabSession[];
   activeTabId: string | null;
   sidebarView: "hosts" | "keys";
@@ -42,6 +57,14 @@ interface AppState {
   addKey: (key: SSHKey) => void;
   removeKey: (id: string) => void;
 
+  setGroups: (groups: Group[]) => void;
+  addGroup: (group: Group) => void;
+  removeGroup: (id: string) => void;
+
+  setVaults: (vaults: Vault[]) => void;
+  addVault: (vault: Vault) => void;
+  setActiveVaultId: (id: string) => void;
+
   addTab: (tab: TabSession) => void;
   removeTab: (tabId: string) => void;
   setActiveTab: (tabId: string | null) => void;
@@ -54,6 +77,13 @@ interface AppState {
 export const useStore = create<AppState>((set) => ({
   hosts: [],
   keys: [],
+  groups: [
+    { id: "g1", name: "AWS Production", vaultId: "v1" },
+    { id: "g2", name: "Staging", vaultId: "v1" },
+    { id: "g3", name: "Development", vaultId: "v1" },
+  ],
+  vaults: [{ id: "v1", name: "Main Vault" }],
+  activeVaultId: "v1",
   tabs: [],
   activeTabId: null,
   sidebarView: "hosts",
@@ -67,6 +97,14 @@ export const useStore = create<AppState>((set) => ({
   setKeys: (keys) => set({ keys }),
   addKey: (key) => set((s) => ({ keys: [...s.keys, key] })),
   removeKey: (id) => set((s) => ({ keys: s.keys.filter((k) => k.id !== id) })),
+
+  setGroups: (groups) => set({ groups }),
+  addGroup: (group) => set((s) => ({ groups: [...s.groups, group] })),
+  removeGroup: (id) => set((s) => ({ groups: s.groups.filter((g) => g.id !== id) })),
+
+  setVaults: (vaults) => set({ vaults }),
+  addVault: (vault) => set((s) => ({ vaults: [...s.vaults, vault] })),
+  setActiveVaultId: (id) => set({ activeVaultId: id }),
 
   addTab: (tab) => set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tab.tabId })),
   removeTab: (tabId) =>

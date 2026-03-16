@@ -1,15 +1,21 @@
 @import "tailwindcss";
 @import "@xterm/xterm/css/xterm.css";
 
+@theme {
+  --color-space-dark: #0B1021;
+  --color-navy-sidebar: #0f172a;
+  --color-card-slate: #1C2333;
+  --color-accent-blue: #3b82f6;
+}
+
+@font-face {
+  font-family: "Inter";
+  src: url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+}
+
 @font-face {
   font-family: "JetBrains Mono";
   src: local("JetBrains Mono"), local("JetBrainsMono-Regular");
-}
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
 }
 
 html,

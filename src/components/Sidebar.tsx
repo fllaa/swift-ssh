@@ -1,56 +1,71 @@
 import { useStore, HostProfile } from "../store/useStore";
 import HostList from "./HostList";
 import KeyManager from "./KeyManager";
+import { Server, Key, Shuffle, Terminal, ShieldCheck, FileText } from "lucide-react";
 
 interface SidebarProps {
   onAddHost: () => void;
   onEditHost: (host: HostProfile) => void;
 }
 
+
 export default function Sidebar({ onAddHost, onEditHost }: SidebarProps) {
   const { sidebarView, setSidebarView } = useStore();
 
   return (
-    <div className="w-64 bg-[#1e2130] border-r border-[#2a2d3e] flex flex-col h-full shrink-0">
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-[#2a2d3e]">
-        <h1 className="text-white font-semibold text-lg tracking-tight">
-          SwiftSSH
-        </h1>
-      </div>
-
-      {/* Tab switcher */}
-      <div className="flex border-b border-[#2a2d3e]">
+    <aside className="w-64 bg-navy-sidebar shrink-0 flex flex-col border-r border-slate-800" data-purpose="navigation-sidebar">
+      {/* Navigation Items */}
+      <nav className="flex-1 px-4 space-y-1 overflow-y-auto mt-4">
         <button
           onClick={() => setSidebarView("hosts")}
-          className={`flex-1 py-2 text-xs font-medium tracking-wide uppercase ${
+          className={`w-full flex items-center space-x-3 px-3 py-2 text-sm font-medium rounded-r-md transition-all ${
             sidebarView === "hosts"
-              ? "text-white border-b-2 border-blue-500"
-              : "text-gray-500 hover:text-gray-300"
+              ? "bg-accent-blue/10 text-accent-blue border-l-2 border-accent-blue"
+              : "text-slate-400 hover:text-white hover:bg-slate-800"
           }`}
         >
-          Hosts
+          <Server className="w-4 h-4" />
+          <span>Hosts</span>
         </button>
         <button
           onClick={() => setSidebarView("keys")}
-          className={`flex-1 py-2 text-xs font-medium tracking-wide uppercase ${
+          className={`w-full flex items-center space-x-3 px-3 py-2 text-sm font-medium rounded-r-md transition-all ${
             sidebarView === "keys"
-              ? "text-white border-b-2 border-blue-500"
-              : "text-gray-500 hover:text-gray-300"
+              ? "bg-accent-blue/10 text-accent-blue border-l-2 border-accent-blue"
+              : "text-slate-400 hover:text-white hover:bg-slate-800"
           }`}
         >
-          Keys
+          <Key className="w-4 h-4" />
+          <span>Keychain</span>
         </button>
-      </div>
+        <button className="w-full flex items-center space-x-3 px-3 py-2 text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition-all">
+          <Shuffle className="w-4 h-4" />
+          <span>Port Forwarding</span>
+        </button>
+        <button className="w-full flex items-center space-x-3 px-3 py-2 text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition-all">
+          <Terminal className="w-4 h-4" />
+          <span>Snippets</span>
+        </button>
+        <button className="w-full flex items-center space-x-3 px-3 py-2 text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition-all">
+          <ShieldCheck className="w-4 h-4" />
+          <span>Known Hosts</span>
+        </button>
+        <button className="w-full flex items-center space-x-3 px-3 py-2 text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition-all">
+          <FileText className="w-4 h-4" />
+          <span>Logs</span>
+        </button>
+      </nav>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto">
-        {sidebarView === "hosts" ? (
-          <HostList onAddHost={onAddHost} onEditHost={onEditHost} />
-        ) : (
-          <KeyManager />
-        )}
+      {/* Sidebar Footer */}
+      <div className="p-4 border-t border-slate-800">
+        <div className="flex items-center justify-between text-xs text-slate-500">
+          <span>v2.4.1 Stable</span>
+          <div className="flex items-center space-x-1">
+            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+            <span>Connected</span>
+          </div>
+        </div>
       </div>
-    </div>
+    </aside>
   );
 }
