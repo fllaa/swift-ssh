@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { v4 as uuidv4 } from "uuid";
 import { useStore, HostProfile } from "../store/useStore";
@@ -15,6 +15,9 @@ import {
   Box,
   Server,
   Plug,
+  Search,
+  Check,
+  ChevronsUpDown,
 } from "lucide-react";
 
 interface AddHostModalProps {
@@ -37,9 +40,28 @@ export default function AddHostModal({ host, onClose }: AddHostModalProps) {
   const [password, setPassword] = useState(host?.password ?? "");
   const [keyId, setKeyId] = useState(host?.keyId ?? "");
   
-  const [tags, setTags] = useState("");
-  const [osIcon, setOsIcon] = useState("ubuntu");
+  const [tags, setTags] = useState(host?.tags ?? "");
+  const [osIcon, setOsIcon] = useState(host?.osIcon ?? "ubuntu");
   const [showAdvanced, setShowAdvanced] = useState(true);
+  
+  const [groupSearch, setGroupSearch] = useState("");
+  const [showGroupDropdown, setShowGroupDropdown] = useState(false);
+  const groupDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (groupDropdownRef.current && !groupDropdownRef.current.contains(event.target as Node)) {
+        setShowGroupDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedGroup = groups.find(g => g.id === groupId);
+  const filteredGroups = groups.filter(g => 
+    g.name.toLowerCase().includes(groupSearch.toLowerCase())
+  );
 
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{
@@ -55,6 +77,8 @@ export default function AddHostModal({ host, onClose }: AddHostModalProps) {
     username,
     authMethod,
     groupId,
+    tags,
+    osIcon,
     ...(authMethod === "password" ? { password } : { keyId }),
   });
 
@@ -98,12 +122,12 @@ export default function AddHostModal({ host, onClose }: AddHostModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-[#0B1021]/90 backdrop-blur-sm"
+        className="absolute inset-0 bg-space-dark/90 backdrop-blur-sm"
         onClick={onClose}
       ></div>
       
       {/* Modal Content */}
-      <div className="relative w-full max-w-2xl max-h-[calc(100vh-2rem)] bg-[#1C2333] border border-slate-800 shadow-2xl rounded-xl overflow-hidden flex flex-col text-slate-100">
+      <div className="relative w-full max-w-2xl max-h-[calc(100vh-2rem)] bg-card-slate border border-slate-800 shadow-2xl rounded-xl overflow-hidden flex flex-col text-slate-100">
         
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-800 bg-[#161d2b]">
@@ -131,49 +155,101 @@ export default function AddHostModal({ host, onClose }: AddHostModalProps) {
         {/* Form Body */}
         <div className="p-6 space-y-6 overflow-y-auto flex-1">
           {/* General Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+            <div className="md:col-span-6">
               <label className="block text-sm font-semibold text-slate-300 mb-1.5">Label</label>
               <input 
-                className="w-full bg-[#0B1021] border border-slate-800 rounded-xl text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-12 px-4 outline-none transition-all" 
+                className="w-full bg-space-dark border border-slate-800 rounded-xl text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-12 px-4 outline-none transition-all" 
                 placeholder="e.g. Production Web Server" 
                 type="text"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
               />
             </div>
-            <div>
+            
+            <div className="md:col-span-4">
               <label className="block text-sm font-semibold text-slate-300 mb-1.5">Address / IP</label>
               <input 
-                className="w-full bg-[#0B1021] border border-slate-800 rounded-xl text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-12 px-4 outline-none transition-all" 
+                className="w-full bg-space-dark border border-slate-800 rounded-xl text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-12 px-4 outline-none transition-all" 
                 placeholder="192.168.1.1 or example.com" 
                 type="text"
                 value={hostname}
                 onChange={(e) => setHostname(e.target.value)}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-1.5">Port</label>
-                <input 
-                  className="w-full bg-[#0B1021] border border-slate-800 rounded-xl text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-12 px-4 outline-none transition-all" 
-                  type="number" 
-                  value={port}
-                  onChange={(e) => setPort(Number(e.target.value))}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-300 mb-1.5">Group</label>
-                <select 
-                  className="w-full bg-[#0B1021] border border-slate-800 rounded-xl text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-12 px-4 outline-none transition-all appearance-none"
-                  value={groupId}
-                  onChange={(e) => setGroupId(e.target.value)}
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-semibold text-slate-300 mb-1.5">Port</label>
+              <input 
+                className="w-full bg-space-dark border border-slate-800 rounded-xl text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-12 px-4 outline-none transition-all" 
+                type="number" 
+                value={port}
+                onChange={(e) => setPort(Number(e.target.value))}
+              />
+            </div>
+
+            <div className="md:col-span-6">
+              <label className="block text-sm font-semibold text-slate-300 mb-1.5">Group (Type)</label>
+              <div className="relative" ref={groupDropdownRef}>
+                <div 
+                  className="w-full bg-space-dark border border-slate-800 rounded-xl text-white h-12 px-4 flex items-center justify-between cursor-pointer focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all"
+                  onClick={() => setShowGroupDropdown(!showGroupDropdown)}
                 >
-                  <option value="">None</option>
-                  {groups.map(g => (
-                    <option key={g.id} value={g.id}>{g.name}</option>
-                  ))}
-                </select>
+                  <span className={selectedGroup ? "text-white" : "text-slate-500"}>
+                    {selectedGroup ? selectedGroup.name : "None / Uncategorized"}
+                  </span>
+                  <ChevronsUpDown className="w-4 h-4 text-slate-500" />
+                </div>
+
+                {showGroupDropdown && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-card-slate border border-slate-800 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-64 animate-in fade-in zoom-in duration-200">
+                    <div className="p-2 border-b border-slate-800">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                        <input 
+                          autoFocus
+                          className="w-full bg-space-dark border border-slate-800 rounded-lg text-sm text-white pl-9 pr-4 py-2 outline-none focus:border-blue-500"
+                          placeholder="Search groups..."
+                          value={groupSearch}
+                          onChange={(e) => setGroupSearch(e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    </div>
+                    <div className="overflow-y-auto flex-1 p-1">
+                      <button 
+                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between ${groupId === "" ? 'bg-blue-500/10 text-blue-400' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                        onClick={() => {
+                          setGroupId("");
+                          setShowGroupDropdown(false);
+                          setGroupSearch("");
+                        }}
+                      >
+                        <span>None</span>
+                        {!groupId && <Check className="w-4 h-4" />}
+                      </button>
+                      {filteredGroups.map(g => (
+                        <button 
+                          key={g.id}
+                          className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between ${groupId === g.id ? 'bg-blue-500/10 text-blue-400' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                          onClick={() => {
+                            setGroupId(g.id);
+                            setShowGroupDropdown(false);
+                            setGroupSearch("");
+                          }}
+                        >
+                          <span>{g.name}</span>
+                          {groupId === g.id && <Check className="w-4 h-4" />}
+                        </button>
+                      ))}
+                      {filteredGroups.length === 0 && groupSearch && (
+                        <div className="px-3 py-4 text-center text-sm text-slate-500">
+                          No groups found
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -182,7 +258,7 @@ export default function AddHostModal({ host, onClose }: AddHostModalProps) {
           <div className="pt-4 border-t border-slate-800">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">Authentication</h3>
-              <div className="flex bg-[#0B1021] p-1 rounded-lg border border-slate-800">
+              <div className="flex bg-space-dark p-1 rounded-lg border border-slate-800">
                 <button 
                   onClick={() => setAuthMethod("password")}
                   className={`px-4 py-1.5 text-xs font-bold rounded-md transition-colors ${authMethod === 'password' ? 'bg-blue-500 text-white' : 'text-slate-400 hover:text-slate-200'}`}
@@ -204,7 +280,7 @@ export default function AddHostModal({ host, onClose }: AddHostModalProps) {
                 <div className="relative">
                   <User className="absolute left-3 top-[14px] text-slate-500 w-5 h-5" />
                   <input 
-                    className="w-full bg-[#0B1021] border border-slate-800 rounded-xl text-white pl-10 pr-4 placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-12 outline-none transition-all" 
+                    className="w-full bg-space-dark border border-slate-800 rounded-xl text-white pl-10 pr-4 placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-12 outline-none transition-all" 
                     placeholder="root" 
                     type="text"
                     value={username}
@@ -219,7 +295,7 @@ export default function AddHostModal({ host, onClose }: AddHostModalProps) {
                   <div className="relative">
                     <Lock className="absolute left-3 top-[14px] text-slate-500 w-5 h-5" />
                     <input 
-                      className="w-full bg-[#0B1021] border border-slate-800 rounded-xl text-white pl-10 pr-4 placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-12 outline-none transition-all" 
+                      className="w-full bg-space-dark border border-slate-800 rounded-xl text-white pl-10 pr-4 placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-12 outline-none transition-all" 
                       placeholder="••••••••" 
                       type="password"
                       value={password}
@@ -233,7 +309,7 @@ export default function AddHostModal({ host, onClose }: AddHostModalProps) {
                   <div className="relative">
                     <Lock className="absolute left-3 top-[14px] text-slate-500 w-5 h-5 pointer-events-none" />
                     <select 
-                      className="w-full bg-[#0B1021] border border-slate-800 rounded-xl text-white pl-10 pr-4 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-12 outline-none transition-all appearance-none"
+                      className="w-full bg-space-dark border border-slate-800 rounded-xl text-white pl-10 pr-4 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-12 outline-none transition-all appearance-none"
                       value={keyId}
                       onChange={(e) => setKeyId(e.target.value)}
                     >
@@ -284,7 +360,7 @@ export default function AddHostModal({ host, onClose }: AddHostModalProps) {
                 <div>
                   <label className="block text-sm font-semibold text-slate-300 mb-1.5">Tags</label>
                   <input 
-                    className="w-full bg-[#0B1021] border border-slate-800 rounded-xl text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-12 px-4 outline-none transition-all" 
+                    className="w-full bg-space-dark border border-slate-800 rounded-xl text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-12 px-4 outline-none transition-all" 
                     placeholder="frontend, nginx, production..." 
                     type="text"
                     value={tags}
@@ -310,7 +386,7 @@ export default function AddHostModal({ host, onClose }: AddHostModalProps) {
                           className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${
                             isSelected
                               ? "bg-blue-500/20 border-blue-500 text-white"
-                              : "bg-[#0B1021] border-slate-800 text-slate-400 hover:border-slate-500"
+                              : "bg-space-dark border-slate-800 text-slate-400 hover:border-slate-500"
                           }`}
                         >
                           <Icon className="w-5 h-5" />

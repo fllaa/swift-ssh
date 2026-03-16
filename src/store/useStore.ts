@@ -10,6 +10,8 @@ export interface HostProfile {
   password?: string;
   keyId?: string;
   groupId?: string;
+  tags?: string;
+  osIcon?: string;
 }
 
 export interface Group {
