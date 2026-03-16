@@ -1,0 +1,183 @@
+#!/usr/bin/env python3
+"""
+SwiftSSH Python sidecar — manages an interactive SSH session.
+
+Communication protocol:
+- Receives host config via --host-json CLI arg
+- Reads raw bytes from stdin → sends to SSH channel
+- Writes SSH channel output as base64-encoded chunks to stdout (one per line)
+- Each stdout line is a JSON object: {"type":"data","payload":"<base64>"} or {"type":"status","payload":"<msg>"}
+"""
+
+import argparse
+import base64
+import json
+import sys
+import tempfile
+import threading
+import time
+import os
+import traceback
+
+import paramiko
+
+
+def log(msg: str):
+    """Write debug log to stderr (picked up by Rust stderr reader)."""
+    sys.stderr.write(f"[sidecar] {msg}\n")
+    sys.stderr.flush()
+
+
+def emit_data(raw_bytes: bytes):
+    """Write base64-encoded SSH output as a JSON line."""
+    encoded = base64.b64encode(raw_bytes).decode("ascii")
+    line = json.dumps({"type": "data", "payload": encoded})
+    sys.stdout.write(line + "\n")
+    sys.stdout.flush()
+
+
+def emit_status(msg: str):
+    """Write a status message as a JSON line."""
+    line = json.dumps({"type": "status", "payload": msg})
+    sys.stdout.write(line + "\n")
+    sys.stdout.flush()
+    log(f"emit_status: {msg}")
+
+
+def main():
+    log("sidecar starting")
+    log(f"python: {sys.executable} {sys.version}")
+    log(f"argv: {sys.argv}")
+    log(f"stdout isatty={sys.stdout.isatty()}, encoding={sys.stdout.encoding}")
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--host-json", required=True, help="JSON host profile")
+    parser.add_argument("--session-id", required=True, help="Session ID")
+    parser.add_argument("--key-content", default=None, help="Private key content")
+    parser.add_argument("--test", action="store_true", help="Test connection only")
+    args = parser.parse_args()
+
+    host = json.loads(args.host_json)
+    hostname = host.get("hostname", "localhost")
+    port = int(host.get("port", 22))
+    username = host.get("username", "root")
+    auth_method = host.get("authMethod", "password")
+    password = host.get("password", "")
+
+    log(f"connecting to {username}@{hostname}:{port} auth={auth_method}")
+
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        connect_kwargs = {
+            "hostname": hostname,
+            "port": port,
+            "username": username,
+            "timeout": 15,
+            "allow_agent": False,
+            "look_for_keys": False,
+        }
+
+        if auth_method == "key" and args.key_content:
+            tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".pem", delete=False)
+            tmp.write(args.key_content)
+            tmp.close()
+            try:
+                pkey = paramiko.RSAKey.from_private_key_file(tmp.name)
+            except paramiko.ssh_exception.SSHException:
+                try:
+                    pkey = paramiko.Ed25519Key.from_private_key_file(tmp.name)
+                except Exception:
+                    pkey = paramiko.ECDSAKey.from_private_key_file(tmp.name)
+            os.unlink(tmp.name)
+            connect_kwargs["pkey"] = pkey
+        else:
+            connect_kwargs["password"] = password
+
+        client.connect(**connect_kwargs)
+        log("SSH connected successfully")
+
+        if args.test:
+            transport = client.get_transport()
+            if transport and transport.is_active():
+                sys.stdout.write("OK\n")
+                sys.stdout.flush()
+            else:
+                sys.stdout.write("FAIL:Connection established but transport inactive\n")
+                sys.stdout.flush()
+            client.close()
+            sys.exit(0)
+
+        channel = client.invoke_shell(term="xterm-256color", width=120, height=40)
+        channel.settimeout(0.1)
+        log("shell channel opened")
+
+        chunk_count = 0
+
+        # Thread: read from SSH channel → stdout as base64 JSON lines
+        def read_channel():
+            nonlocal chunk_count
+            log("read_channel thread started")
+            while not channel.closed:
+                try:
+                    if channel.recv_ready():
+                        data = channel.recv(4096)
+                        if data:
+                            chunk_count += 1
+                            if chunk_count <= 5:
+                                log(f"recv chunk #{chunk_count}: {len(data)} bytes")
+                            emit_data(data)
+                    else:
+                        time.sleep(0.02)
+                except Exception as e:
+                    log(f"read_channel exception: {e}")
+                    break
+            log(f"read_channel ended after {chunk_count} chunks")
+            emit_status("disconnected")
+            sys.exit(0)
+
+        reader_thread = threading.Thread(target=read_channel, daemon=True)
+        reader_thread.start()
+
+        log("waiting for stdin input...")
+        # Main thread: read raw bytes from stdin → send to SSH channel
+        for line in sys.stdin:
+            if channel.closed:
+                log("channel closed, breaking stdin loop")
+                break
+            try:
+                raw = base64.b64decode(line.strip())
+                channel.send(raw)
+            except Exception as e:
+                log(f"stdin decode/send error: {e}")
+
+    except paramiko.AuthenticationException:
+        log("Authentication failed")
+        if args.test:
+            sys.stdout.write("FAIL:Authentication failed\n")
+            sys.stdout.flush()
+            sys.exit(1)
+        emit_status("error:Authentication failed")
+    except paramiko.SSHException as e:
+        log(f"SSH exception: {e}")
+        if args.test:
+            sys.stdout.write(f"FAIL:{e}\n")
+            sys.stdout.flush()
+            sys.exit(1)
+        emit_status(f"error:{e}")
+    except Exception as e:
+        log(f"Unexpected exception: {e}")
+        log(traceback.format_exc())
+        if args.test:
+            sys.stdout.write(f"FAIL:{e}\n")
+            sys.stdout.flush()
+            sys.exit(1)
+        emit_status(f"error:{e}")
+    finally:
+        log("closing client")
+        client.close()
+
+
+if __name__ == "__main__":
+    main()

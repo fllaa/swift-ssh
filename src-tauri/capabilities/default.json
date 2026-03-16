@@ -1,0 +1,13 @@
+{
+  "identifier": "default",
+  "description": "Default capabilities for SwiftSSH",
+  "windows": ["*"],
+  "permissions": [
+    "core:default",
+    "core:event:default",
+    "core:event:allow-listen",
+    "core:event:allow-emit",
+    "shell:default",
+    "shell:allow-open"
+  ]
+}
