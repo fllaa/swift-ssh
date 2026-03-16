@@ -199,7 +199,18 @@ export default function App() {
               </div>
             ))}
 
-            {tabs.length === 0 && <Dashboard />}
+            {tabs.length === 0 && (
+              <Dashboard 
+                onEditHost={(host) => {
+                  setEditHost(host);
+                  setShowAddHost(true);
+                }}
+                onAddHost={() => {
+                  setEditHost(null);
+                  setShowAddHost(true);
+                }}
+              />
+            )}
           </div>
         </main>
       </div>

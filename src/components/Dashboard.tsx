@@ -1,9 +1,34 @@
-import { useStore } from "../store/useStore";
+import { useStore, HostProfile } from "../store/useStore";
 import { v4 as uuidv4 } from "uuid";
-import { Search, LayoutGrid, List, Plus, Cloud, Layers, Code2, PlusCircle, ChevronRight, Database, Globe, Box, Container, Cpu, HardDrive, Monitor } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
+import { useState, useEffect } from "react";
+import { Search, LayoutGrid, List, Plus, Cloud, Layers, Code2, PlusCircle, ChevronRight, Database, Globe, Box, Container, Cpu, HardDrive, Monitor, Edit2, Trash2 } from "lucide-react";
 
-export default function Dashboard() {
-  const { hosts, groups, activeVaultId, addTab } = useStore();
+interface DashboardProps {
+  onEditHost: (host: HostProfile) => void;
+  onAddHost: () => void;
+}
+
+export default function Dashboard({ onEditHost, onAddHost }: DashboardProps) {
+  const { hosts, groups, activeVaultId, addTab, removeHost } = useStore();
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, host: HostProfile } | null>(null);
+
+  // Close context menu on click outside
+  useEffect(() => {
+    const handleClick = () => setContextMenu(null);
+    window.addEventListener("click", handleClick);
+    return () => window.removeEventListener("click", handleClick);
+  }, []);
+
+  const handleDelete = async (host: HostProfile) => {
+    if (!confirm(`Delete host "${host.label || host.hostname}"?`)) return;
+    try {
+      await invoke("delete_host", { hostId: host.id });
+      removeHost(host.id);
+    } catch (err) {
+      console.error("Delete failed:", err);
+    }
+  };
 
   const currentGroups = groups.filter(g => g.vaultId === activeVaultId);
   const activeHosts = hosts; // we can filter by group later if needed
@@ -67,6 +92,14 @@ export default function Dashboard() {
                   connected: false,
                 });
               }}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setContextMenu({
+                  x: e.clientX,
+                  y: e.clientY,
+                  host
+                });
+              }}
               className="bg-card-slate border border-slate-800 rounded-xl p-5 hover:bg-slate-800/80 hover:scale-[1.01] transition-all cursor-pointer relative group"
             >
               <div className="flex items-start space-x-4">
@@ -82,12 +115,45 @@ export default function Dashboard() {
           ))}
 
           {/* Add Placeholder */}
-          <div className="border border-dashed border-slate-700 rounded-xl p-5 flex flex-col items-center justify-center hover:bg-slate-800/30 cursor-pointer transition-all space-y-2 opacity-60">
+          <div 
+            onClick={onAddHost}
+            className="border border-dashed border-slate-700 rounded-xl p-5 flex flex-col items-center justify-center hover:bg-slate-800/30 cursor-pointer transition-all space-y-2 opacity-60"
+          >
             <Plus className="w-8 h-8 text-slate-600" />
             <span className="text-sm font-medium text-slate-500">Connect New Server</span>
           </div>
         </div>
       </section>
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div 
+          className="fixed bg-slate-800 border border-slate-700 shadow-xl rounded-md py-1 w-40 z-50 overflow-hidden"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button 
+            className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 flex items-center gap-2"
+            onClick={() => {
+              onEditHost(contextMenu.host);
+              setContextMenu(null);
+            }}
+          >
+            <Edit2 className="w-4 h-4 text-slate-400" />
+            Edit Profile
+          </button>
+          <button 
+            className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-700 flex items-center gap-2 hover:text-red-300"
+            onClick={() => {
+              handleDelete(contextMenu.host);
+              setContextMenu(null);
+            }}
+          >
+            <Trash2 className="w-4 h-4 text-red-400/80" />
+            Delete Host
+          </button>
+        </div>
+      )}
     </div>
   );
 }
