@@ -46,9 +46,6 @@ def emit_status(msg: str):
 
 def main():
     log("sidecar starting")
-    log(f"python: {sys.executable} {sys.version}")
-    log(f"argv: {sys.argv}")
-    log(f"stdout isatty={sys.stdout.isatty()}, encoding={sys.stdout.encoding}")
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--host-json", required=True, help="JSON host profile")
@@ -113,27 +110,21 @@ def main():
         channel.settimeout(0.1)
         log("shell channel opened")
 
-        chunk_count = 0
-
         # Thread: read from SSH channel → stdout as base64 JSON lines
         def read_channel():
-            nonlocal chunk_count
             log("read_channel thread started")
             while not channel.closed:
                 try:
                     if channel.recv_ready():
                         data = channel.recv(4096)
                         if data:
-                            chunk_count += 1
-                            if chunk_count <= 5:
-                                log(f"recv chunk #{chunk_count}: {len(data)} bytes")
                             emit_data(data)
                     else:
                         time.sleep(0.02)
                 except Exception as e:
                     log(f"read_channel exception: {e}")
                     break
-            log(f"read_channel ended after {chunk_count} chunks")
+            log("read_channel ended")
             emit_status("disconnected")
             sys.exit(0)
 

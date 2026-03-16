@@ -18,7 +18,7 @@ export default function TerminalTab({ tabId, hostId }: TerminalTabProps) {
 
   useEffect(() => {
     if (!containerRef.current) return;
-    console.log(`[TerminalTab] useEffect running, tabId=${tabId}, hostId=${hostId}`);
+
 
     const term = new Terminal({
       theme: {
@@ -86,10 +86,9 @@ export default function TerminalTab({ tabId, hostId }: TerminalTabProps) {
     // Initiate connection immediately — don't wait for listen() to resolve.
     // The SSH handshake takes 1-2 seconds, so the listener will be registered
     // long before any data arrives from the sidecar.
-    console.log(`[TerminalTab] invoking connect_host for hostId=${hostId}`);
+
     invoke<string>("connect_host", { hostId })
       .then((sessionId) => {
-        console.log(`[TerminalTab] connected, sessionId=${sessionId}`);
         sessionIdRef.current = sessionId;
         setTabSessionId(tabId, sessionId);
         term.clear();

@@ -18,7 +18,6 @@ pub fn sidecar_script() -> PathBuf {
         .join("sidecar")
         .join("main.py");
     if dev_path.exists() {
-        eprintln!("[ssh_bridge] sidecar_script resolved to: {:?}", dev_path);
         return dev_path;
     }
 
@@ -26,7 +25,6 @@ pub fn sidecar_script() -> PathBuf {
         let exe_dir = exe.parent().unwrap_or(&PathBuf::from(".")).to_path_buf();
         let prod_path = exe_dir.join("sidecar").join("main.py");
         if prod_path.exists() {
-            eprintln!("[ssh_bridge] sidecar_script resolved to: {:?}", prod_path);
             return prod_path;
         }
     }
@@ -54,7 +52,7 @@ impl SshBridge {
     }
 
     pub async fn connect(&mut self, host_id: &str) -> Result<String, String> {
-        eprintln!("[ssh_bridge] connect called for host_id={}", host_id);
+        eprintln!("[ssh_bridge] connect: host_id={}", host_id);
 
         let storage = storage_dir();
         let hosts_path = storage.join("hosts.json");
@@ -67,7 +65,7 @@ impl SshBridge {
             .clone();
 
         let session_id = uuid::Uuid::new_v4().to_string();
-        eprintln!("[ssh_bridge] session_id={}", session_id);
+
 
         let mut key_content: Option<String> = None;
         if host.get("authMethod").and_then(|v| v.as_str()) == Some("key") {
@@ -87,7 +85,7 @@ impl SshBridge {
         let script = sidecar_script();
         let script_str = script.to_str().unwrap_or("sidecar/main.py");
 
-        eprintln!("[ssh_bridge] spawning: python3 -u {} --host-json <...> --session-id {}", script_str, session_id);
+        eprintln!("[ssh_bridge] spawning sidecar: {}", script_str);
 
         let mut cmd = Command::new("python3");
         cmd.arg("-u")
@@ -107,6 +105,7 @@ impl SshBridge {
 
         let mut child = cmd.spawn().map_err(|e| format!("Failed to start sidecar: {}", e))?;
         eprintln!("[ssh_bridge] sidecar spawned, pid={:?}", child.id());
+        eprintln!("[ssh_bridge] session_id={}", session_id);
 
         let stdin = child.stdin.take().ok_or("Failed to get stdin")?;
         let stdout = child.stdout.take().ok_or("Failed to get stdout")?;
@@ -137,11 +136,6 @@ impl SshBridge {
                 match line {
                     Ok(text) => {
                         line_count += 1;
-                        if line_count <= 5 {
-                            eprintln!("[ssh_bridge] stdout line #{}: {} bytes, first 200 chars: {}", line_count, text.len(), &text[..text.len().min(200)]);
-                        } else if line_count % 100 == 0 {
-                            eprintln!("[ssh_bridge] stdout line #{} ({} bytes)", line_count, text.len());
-                        }
 
                         // Try to parse as JSON
                         match serde_json::from_str::<Value>(&text) {
@@ -154,9 +148,6 @@ impl SshBridge {
                                         match base64::engine::general_purpose::STANDARD.decode(payload) {
                                             Ok(bytes) => {
                                                 let decoded = String::from_utf8_lossy(&bytes).to_string();
-                                                if line_count <= 5 {
-                                                    eprintln!("[ssh_bridge] decoded {} bytes, emitting ssh-output", bytes.len());
-                                                }
                                                 let emit_result = app.emit(
                                                     "ssh-output",
                                                     serde_json::json!({"sessionId": sid, "data": decoded}),
@@ -217,7 +208,7 @@ impl SshBridge {
             },
         );
 
-        eprintln!("[ssh_bridge] connect returning session_id={}", session_id);
+        eprintln!("[ssh_bridge] connect() done, session={}", session_id);
         Ok(session_id)
     }
 

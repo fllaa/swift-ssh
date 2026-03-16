@@ -7,7 +7,12 @@
       "Bash(cargo check:*)",
       "Bash(cargo build:*)",
       "Bash(npx vite:*)",
-      "Bash(python3 -u sidecar/main.py --host-json '{\"\"\"\"hostname\"\"\"\":\"\"\"\"43.133.150.117\"\"\"\",\"\"\"\"port\"\"\"\":22,\"\"\"\"username\"\"\"\":\"\"\"\"falla\"\"\"\",\"\"\"\"authMethod\"\"\"\":\"\"\"\"password\"\"\"\",\"\"\"\"password\"\"\"\":\"\"\"\"test\"\"\"\"}' --session-id test --test)"
+      "Bash(python3 -u sidecar/main.py --host-json '{\"\"\"\"hostname\"\"\"\":\"\"\"\"43.133.150.117\"\"\"\",\"\"\"\"port\"\"\"\":22,\"\"\"\"username\"\"\"\":\"\"\"\"falla\"\"\"\",\"\"\"\"authMethod\"\"\"\":\"\"\"\"password\"\"\"\",\"\"\"\"password\"\"\"\":\"\"\"\"test\"\"\"\"}' --session-id test --test)",
+      "Bash(SRC=public/logo.png)",
+      "Bash(ICONS=src-tauri/icons)",
+      "Bash(sips -z 32 32 \"$SRC\" --out \"$ICONS/32x32.png\")",
+      "Bash(sips -z 128 128 \"$SRC\" --out \"$ICONS/128x128.png\")",
+      "Bash(sips -z 256 256 \"$SRC\" --out \"$ICONS/128x128@2x.png\")"
     ]
   }
 }
