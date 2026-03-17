@@ -15,7 +15,11 @@ import {
   Cloud,
   ChevronDown,
   Server,
+  Copy,
+  Type,
+  X,
 } from "lucide-react";
+import { v4 as uuidv4 } from "uuid";
 
 export default function App() {
   const {
@@ -26,12 +30,20 @@ export default function App() {
     setActiveTab,
     removeTab,
     markDisconnected,
+    addTab,
+    renameTab,
     vaults,
     activeVaultId,
   } = useStore();
   const [showAddHost, setShowAddHost] = useState(false);
   const [editHost, setEditHost] = useState<HostProfile | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [tabContextMenu, setTabContextMenu] = useState<{
+    x: number;
+    y: number;
+    tabId: string;
+  } | null>(null);
+  const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
 
   const activeVault = vaults.find((v) => v.id === activeVaultId) || vaults[0];
 
@@ -53,6 +65,13 @@ export default function App() {
     return () => {
       unlistenResize.then((f) => f());
     };
+  }, []);
+
+  // Close context menu on click outside
+  useEffect(() => {
+    const handleClick = () => setTabContextMenu(null);
+    globalThis.addEventListener("click", handleClick);
+    return () => globalThis.removeEventListener("click", handleClick);
   }, []);
 
   // Load hosts and keys on mount
@@ -114,6 +133,14 @@ export default function App() {
                 <div
                   key={tab.tabId}
                   onClick={() => setActiveTab(tab.tabId)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setTabContextMenu({
+                      x: e.clientX,
+                      y: e.clientY,
+                      tabId: tab.tabId,
+                    });
+                  }}
                   className={`group relative flex items-center gap-2 px-5 cursor-pointer text-sm font-medium transition-all duration-200 ${
                     isActive
                       ? "tab-curve-active text-white"
@@ -121,7 +148,31 @@ export default function App() {
                   }`}
                 >
                   <Server className={`w-3.5 h-3.5 ${statusColor}`} />
-                  <span className="truncate max-w-40">{tab.label}</span>
+                  {renamingTabId === tab.tabId ? (
+                    <input
+                      autoFocus
+                      onFocus={(e) => e.target.select()}
+                      className="bg-[#1a1f2e] border border-blue-500/50 outline-none text-white text-xs font-medium w-full max-w-40 px-1.5 py-0.5 rounded shadow-inner"
+                      defaultValue={tab.label}
+                      onBlur={(e) => {
+                        const val = e.target.value.trim();
+                        if (val) renameTab(tab.tabId, val);
+                        setRenamingTabId(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          const val = e.currentTarget.value.trim();
+                          if (val) renameTab(tab.tabId, val);
+                          setRenamingTabId(null);
+                        } else if (e.key === "Escape") {
+                          setRenamingTabId(null);
+                        }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <span className="truncate max-w-40">{tab.label}</span>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -145,6 +196,79 @@ export default function App() {
           </div>
         </div>
 
+        {/* Tab Context Menu */}
+        {tabContextMenu && (
+          <div
+            className="fixed bg-[#1a1f2e] border border-slate-700 shadow-2xl rounded-lg py-1.5 w-48 z-50 overflow-hidden"
+            style={{ top: tabContextMenu.y, left: tabContextMenu.x }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-blue-600/20 hover:text-blue-400 flex items-center gap-3 transition-colors"
+              onClick={() => {
+                const sourceTab = tabs.find((t) => t.tabId === tabContextMenu.tabId);
+                if (sourceTab) {
+                  // Get the base label (remove existing (n) if present)
+                  const labelRegex = /^(.*?) \((\d+)\)$/;
+                  const match = labelRegex.exec(sourceTab.label);
+                  const baseLabel = match ? match[1] : sourceTab.label;
+                  
+                  // Find the highest n for this baseLabel
+                  let maxN = 0;
+                  const escapedBase = baseLabel.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+                  const tabRegex = new RegExp(String.raw`^${escapedBase} \((\d+)\)$`);
+
+                  tabs.forEach(t => {
+                    const tMatch = tabRegex.exec(t.label);
+                    if (tMatch) {
+                      const n = Number.parseInt(tMatch[1], 10);
+                      if (n > maxN) maxN = n;
+                    }
+                  });
+
+                  addTab({
+                    ...sourceTab,
+                    tabId: uuidv4(),
+                    sessionId: null,
+                    connected: false,
+                    label: `${baseLabel} (${maxN + 1})`,
+                  });
+                }
+                setTabContextMenu(null);
+              }}
+            >
+              <Copy className="w-4 h-4" />
+              Duplicate Tab
+            </button>
+            <button
+              className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-blue-600/20 hover:text-blue-400 flex items-center gap-3 transition-colors"
+              onClick={() => {
+                setRenamingTabId(tabContextMenu.tabId);
+                setTabContextMenu(null);
+              }}
+            >
+              <Type className="w-4 h-4" />
+              Rename Session
+            </button>
+            <div className="my-1 border-t border-slate-800" />
+            <button
+              className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-3 transition-colors"
+              onClick={() => {
+                const tab = tabs.find((t) => t.tabId === tabContextMenu.tabId);
+                if (tab) {
+                  if (tab.sessionId) {
+                    invoke("disconnect_host", { sessionId: tab.sessionId }).catch(() => {});
+                  }
+                  removeTab(tab.tabId);
+                }
+                setTabContextMenu(null);
+              }}
+            >
+              <X className="w-4 h-4" />
+              Close Session
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Main App Row */}

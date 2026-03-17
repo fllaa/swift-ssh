@@ -73,6 +73,7 @@ interface AppState {
   setTabSessionId: (tabId: string, sessionId: string) => void;
   markDisconnected: (sessionId: string) => void;
 
+  renameTab: (tabId: string, label: string) => void;
   setSidebarView: (view: "hosts" | "keys") => void;
 }
 
@@ -112,14 +113,13 @@ export const useStore = create<AppState>((set) => ({
   removeTab: (tabId) =>
     set((s) => {
       const newTabs = s.tabs.filter((t) => t.tabId !== tabId);
+      let nextActiveTabId = s.activeTabId;
+      if (s.activeTabId === tabId) {
+        nextActiveTabId = newTabs.length > 0 ? newTabs[newTabs.length - 1].tabId : null;
+      }
       return {
         tabs: newTabs,
-        activeTabId:
-          s.activeTabId === tabId
-            ? newTabs.length > 0
-              ? newTabs[newTabs.length - 1].tabId
-              : null
-            : s.activeTabId,
+        activeTabId: nextActiveTabId,
       };
     }),
   setActiveTab: (tabId) => set({ activeTabId: tabId }),
@@ -136,5 +136,9 @@ export const useStore = create<AppState>((set) => ({
       ),
     })),
 
+  renameTab: (tabId, label) =>
+    set((s) => ({
+      tabs: s.tabs.map((t) => (t.tabId === tabId ? { ...t, label } : t)),
+    })),
   setSidebarView: (view) => set({ sidebarView: view }),
 }));
