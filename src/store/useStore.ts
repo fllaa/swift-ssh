@@ -12,6 +12,7 @@ export interface HostProfile {
   groupId?: string;
   tags?: string;
   osIcon?: string;
+  lastConnected?: number;
 }
 
 export interface Group {

@@ -111,6 +111,13 @@ export default function SftpTab({ tabId, hostId }: SftpTabProps) {
           (event) => {
             if (event.payload.sessionId === sessionId) {
               setStatus("connected");
+              // Update lastConnected timestamp
+              const currentHost = useStore.getState().hosts.find(h => h.id === hostId);
+              if (currentHost) {
+                const updatedHost = { ...currentHost, lastConnected: Date.now() };
+                useStore.getState().updateHost(updatedHost);
+                invoke("save_host", { profile: updatedHost }).catch(console.error);
+              }
             }
           }
         );

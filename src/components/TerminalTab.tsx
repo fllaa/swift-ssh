@@ -131,16 +131,19 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
         setTabSessionId(tabId, sessionId);
         term.clear();
 
-        // Auto-detect distro in background
+        // Auto-detect distro in background and update lastConnected
         const rawId = await invoke<string>("detect_distro", { hostId });
-        if (rawId) {
-          const iconKey = normalizeDistroId(rawId);
-          const currentHost = hosts.find((h) => h.id === hostId);
-          if (currentHost && currentHost.osIcon !== iconKey) {
-            const updated = { ...currentHost, osIcon: iconKey };
-            updateHost(updated);
-            await invoke("save_host", { profile: updated });
+        const currentHost = hosts.find((h) => h.id === hostId);
+        if (currentHost) {
+          let updatedHost = { ...currentHost, lastConnected: Date.now() };
+          if (rawId) {
+            const iconKey = normalizeDistroId(rawId);
+            if (currentHost.osIcon !== iconKey) {
+              updatedHost.osIcon = iconKey;
+            }
           }
+          updateHost(updatedHost);
+          await invoke("save_host", { profile: updatedHost });
         }
       } catch (err) {
         console.error("[TerminalTab] Connection failed:", err);

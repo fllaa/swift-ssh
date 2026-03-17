@@ -12,6 +12,7 @@ import Dashboard from "./components/Dashboard";
 import NewActionModal from "./components/NewActionModal";
 import KeysScreen from "./components/KeysScreen";
 import AddKeyModal from "./components/AddKeyModal";
+import NewTabModal from "./components/NewTabModal";
 import {
   Search,
   LayoutGrid,
@@ -49,6 +50,7 @@ export default function App() {
   const [showAddGroup, setShowAddGroup] = useState(false);
   const [showAddKey, setShowAddKey] = useState(false);
   const [showNewActionModal, setShowNewActionModal] = useState(false);
+  const [showNewTabModal, setShowNewTabModal] = useState(false);
   const [editHost, setEditHost] = useState<HostProfile | null>(null);
   const [editGroup, setEditGroup] = useState<Group | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -86,6 +88,18 @@ export default function App() {
     const handleClick = () => setTabContextMenu(null);
     globalThis.addEventListener("click", handleClick);
     return () => globalThis.removeEventListener("click", handleClick);
+  }, []);
+
+  // Global hotkeys
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setShowNewTabModal(true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   // Load hosts, keys, and groups on mount
@@ -240,6 +254,7 @@ export default function App() {
             })}
             {tabs.length > 0 && (
               <button
+                onClick={() => setShowNewTabModal(true)}
                 className="flex items-center justify-center p-1.5 text-slate-500 hover:text-white mb-1.5 ml-1 hover:bg-slate-800 rounded-md transition-colors"
                 style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
               >
@@ -487,6 +502,23 @@ export default function App() {
       )}
 
       {showAddKey && <AddKeyModal onClose={() => setShowAddKey(false)} />}
+
+      {showNewTabModal && (
+        <NewTabModal
+          onClose={() => setShowNewTabModal(false)}
+          onConnect={(host) => {
+            addTab({
+              tabId: uuidv4(),
+              sessionId: null,
+              hostId: host.id,
+              label: host.label || host.hostname,
+              connected: false,
+              type: "terminal",
+            });
+            setShowNewTabModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }
