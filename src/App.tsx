@@ -8,6 +8,7 @@ import TerminalTab from "./components/TerminalTab";
 import AddHostModal from "./components/AddHostModal";
 import AddGroupModal from "./components/AddGroupModal";
 import Dashboard from "./components/Dashboard";
+import NewActionModal from "./components/NewActionModal";
 import {
   Search,
   LayoutGrid,
@@ -41,6 +42,7 @@ export default function App() {
   } = useStore();
   const [showAddHost, setShowAddHost] = useState(false);
   const [showAddGroup, setShowAddGroup] = useState(false);
+  const [showNewActionModal, setShowNewActionModal] = useState(false);
   const [editHost, setEditHost] = useState<HostProfile | null>(null);
   const [editGroup, setEditGroup] = useState<Group | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -324,14 +326,11 @@ export default function App() {
                   </button>
                 </div>
                 <button
-                  onClick={() => {
-                    setEditHost(null);
-                    setShowAddHost(true);
-                  }}
+                  onClick={() => setShowNewActionModal(true)}
                   className="bg-accent-blue hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center space-x-2 transition-colors"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>New Host</span>
+                  <span>New</span>
                 </button>
               </div>
             </header>
@@ -385,6 +384,26 @@ export default function App() {
             setShowAddGroup(false);
             setEditGroup(null);
           }} 
+        />
+      )}
+
+      {showNewActionModal && (
+        <NewActionModal 
+          onClose={() => setShowNewActionModal(false)}
+          onAddHost={() => {
+            setShowNewActionModal(false);
+            setEditHost(null);
+            setShowAddHost(true);
+          }}
+          onAddGroup={() => {
+            setShowNewActionModal(false);
+            setEditGroup(null);
+            setShowAddGroup(true);
+          }}
+          onAddKey={() => {
+            // Placeholder for future implementation
+            setShowNewActionModal(false);
+          }}
         />
       )}
     </div>
