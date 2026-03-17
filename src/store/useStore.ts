@@ -40,6 +40,31 @@ export interface TabSession {
   hostId: string;
   label: string;
   connected: boolean;
+  type: "terminal" | "sftp";
+}
+
+export interface FileEntry {
+  name: string;
+  size: number;
+  permissions: string;
+  permStr: string;
+  mtime: number;
+  isDir: boolean;
+  isSymlink: boolean;
+}
+
+export interface Transfer {
+  id: string;
+  sessionId: string;
+  direction: "upload" | "download";
+  localPath: string;
+  remotePath: string;
+  fileName: string;
+  bytesTransferred: number;
+  totalBytes: number;
+  status: "queued" | "active" | "completed" | "failed" | "cancelled";
+  error?: string;
+  startedAt: number;
 }
 
 interface AppState {
@@ -52,6 +77,7 @@ interface AppState {
   activeTabId: string | null;
   sidebarView: "hosts" | "keys";
   dashboardViewMode: "grid" | "list";
+  transfers: Transfer[];
 
   setHosts: (hosts: HostProfile[]) => void;
   addHost: (host: HostProfile) => void;
@@ -80,6 +106,11 @@ interface AppState {
   renameTab: (tabId: string, label: string) => void;
   setSidebarView: (view: "hosts" | "keys") => void;
   setDashboardViewMode: (mode: "grid" | "list") => void;
+
+  addTransfer: (transfer: Transfer) => void;
+  updateTransfer: (id: string, update: Partial<Transfer>) => void;
+  removeTransfer: (id: string) => void;
+  clearCompletedTransfers: () => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -92,6 +123,7 @@ export const useStore = create<AppState>((set) => ({
   activeTabId: null,
   sidebarView: "hosts",
   dashboardViewMode: "grid",
+  transfers: [],
 
   setHosts: (hosts) => set({ hosts }),
   addHost: (host) => set((s) => ({ hosts: [...s.hosts, host] })),
@@ -148,4 +180,17 @@ export const useStore = create<AppState>((set) => ({
     })),
   setSidebarView: (view) => set({ sidebarView: view }),
   setDashboardViewMode: (mode) => set({ dashboardViewMode: mode }),
+
+  addTransfer: (transfer) =>
+    set((s) => ({ transfers: [...s.transfers, transfer] })),
+  updateTransfer: (id, update) =>
+    set((s) => ({
+      transfers: s.transfers.map((t) => (t.id === id ? { ...t, ...update } : t)),
+    })),
+  removeTransfer: (id) =>
+    set((s) => ({ transfers: s.transfers.filter((t) => t.id !== id) })),
+  clearCompletedTransfers: () =>
+    set((s) => ({
+      transfers: s.transfers.filter((t) => t.status !== "completed" && t.status !== "failed"),
+    })),
 }));

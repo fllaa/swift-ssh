@@ -5,6 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useStore, HostProfile, SSHKey, Group } from "./store/useStore";
 import Sidebar from "./components/Sidebar";
 import TerminalTab from "./components/TerminalTab";
+import SftpTab from "./components/SftpTab";
 import AddHostModal from "./components/AddHostModal";
 import AddGroupModal from "./components/AddGroupModal";
 import Dashboard from "./components/Dashboard";
@@ -19,6 +20,7 @@ import {
   Cloud,
   ChevronDown,
   Server,
+  FolderOpen,
   Copy,
   Type,
   X,
@@ -171,7 +173,11 @@ export default function App() {
                   }`}
                   style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
                 >
-                  <Server className={`w-3.5 h-3.5 ${statusColor}`} />
+                  {tab.type === "sftp" ? (
+                    <FolderOpen className={`w-3.5 h-3.5 ${statusColor}`} />
+                  ) : (
+                    <Server className={`w-3.5 h-3.5 ${statusColor}`} />
+                  )}
                   {renamingTabId === tab.tabId ? (
                     <input
                       autoFocus
@@ -201,7 +207,8 @@ export default function App() {
                     onClick={(e) => {
                       e.stopPropagation();
                       if (tab.sessionId) {
-                        invoke("disconnect_host", { sessionId: tab.sessionId }).catch(() => {});
+                        const cmd = tab.type === "sftp" ? "disconnect_sftp" : "disconnect_host";
+                        invoke(cmd, { sessionId: tab.sessionId }).catch(() => {});
                       }
                       removeTab(tab.tabId);
                     }}
@@ -284,7 +291,8 @@ export default function App() {
                 const tab = tabs.find((t) => t.tabId === tabContextMenu.tabId);
                 if (tab) {
                   if (tab.sessionId) {
-                    invoke("disconnect_host", { sessionId: tab.sessionId }).catch(() => {});
+                    const cmd = tab.type === "sftp" ? "disconnect_sftp" : "disconnect_host";
+                    invoke(cmd, { sessionId: tab.sessionId }).catch(() => {});
                   }
                   removeTab(tab.tabId);
                 }
@@ -363,7 +371,11 @@ export default function App() {
                   tab.tabId === activeTabId ? "block" : "hidden"
                 }`}
               >
-                <TerminalTab tabId={tab.tabId} hostId={tab.hostId} />
+                {tab.type === "sftp" ? (
+                  <SftpTab tabId={tab.tabId} hostId={tab.hostId} />
+                ) : (
+                  <TerminalTab tabId={tab.tabId} hostId={tab.hostId} />
+                )}
               </div>
             ))}
 

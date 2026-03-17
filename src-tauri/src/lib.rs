@@ -1,5 +1,7 @@
+mod sftp_bridge;
 mod ssh_bridge;
 
+use sftp_bridge::SftpBridge;
 use ssh_bridge::SshBridge;
 use std::sync::Arc;
 use tauri::Manager;
@@ -12,6 +14,8 @@ pub fn run() {
         .setup(|app| {
             let bridge = Arc::new(Mutex::new(SshBridge::new(app.handle().clone())));
             app.manage(bridge);
+            let sftp = Arc::new(Mutex::new(SftpBridge::new(app.handle().clone())));
+            app.manage(sftp);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -29,6 +33,11 @@ pub fn run() {
             disconnect_host,
             send_input,
             test_connection,
+            connect_sftp,
+            disconnect_sftp,
+            sftp_command,
+            list_local_dir,
+            get_home_dir,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -256,7 +265,6 @@ async fn detect_distro(host_id: String) -> Result<String, String> {
 async fn test_connection(profile: serde_json::Value) -> Result<String, String> {
     let storage = ssh_bridge::storage_dir();
 
-    // Resolve key content if using key auth
     let mut key_content: Option<String> = None;
     if profile.get("authMethod").and_then(|v| v.as_str()) == Some("key") {
         if let Some(key_id) = profile.get("keyId").and_then(|v| v.as_str()) {
@@ -334,4 +342,131 @@ async fn send_input(
 ) -> Result<(), String> {
     let bridge = state.lock().await;
     bridge.send_input(&session_id, &data).await
+}
+
+// ── SFTP Session Commands ──────────────────────────────
+
+#[tauri::command]
+async fn connect_sftp(
+    host_id: String,
+    state: tauri::State<'_, Arc<Mutex<SftpBridge>>>,
+) -> Result<String, String> {
+    let mut bridge = state.lock().await;
+    bridge.connect(&host_id).await
+}
+
+#[tauri::command]
+async fn disconnect_sftp(
+    session_id: String,
+    state: tauri::State<'_, Arc<Mutex<SftpBridge>>>,
+) -> Result<(), String> {
+    let mut bridge = state.lock().await;
+    bridge.disconnect(&session_id).await
+}
+
+#[tauri::command]
+async fn sftp_command(
+    session_id: String,
+    command: String,
+    state: tauri::State<'_, Arc<Mutex<SftpBridge>>>,
+) -> Result<(), String> {
+    let bridge = state.lock().await;
+    bridge.send_command(&session_id, &command)
+}
+
+// ── Local Filesystem Commands ──────────────────────────
+
+#[tauri::command]
+async fn list_local_dir(path: String) -> Result<serde_json::Value, String> {
+    let dir_path = std::path::Path::new(&path);
+    if !dir_path.exists() {
+        return Err(format!("Path does not exist: {}", path));
+    }
+    if !dir_path.is_dir() {
+        return Err(format!("Not a directory: {}", path));
+    }
+
+    let mut entries = Vec::new();
+
+    let read_dir = std::fs::read_dir(dir_path).map_err(|e| e.to_string())?;
+    for entry in read_dir {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let metadata = entry.metadata().map_err(|e| e.to_string())?;
+        let name = entry.file_name().to_string_lossy().to_string();
+        let size = metadata.len();
+        let is_dir = metadata.is_dir();
+        let is_symlink = metadata.file_type().is_symlink();
+        let mtime = metadata
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+
+        #[cfg(unix)]
+        let (permissions, perm_str) = {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = metadata.permissions().mode();
+            let mode_bits = mode & 0o7777;
+            (format!("0{:o}", mode_bits), format_unix_permissions(mode))
+        };
+        #[cfg(not(unix))]
+        let (permissions, perm_str) = {
+            let ro = metadata.permissions().readonly();
+            (
+                if ro { "0444".to_string() } else { "0644".to_string() },
+                if is_dir {
+                    if ro { "dr--r--r--" } else { "drwxr-xr-x" }
+                } else {
+                    if ro { "-r--r--r--" } else { "-rw-r--r--" }
+                }
+                .to_string(),
+            )
+        };
+
+        entries.push(serde_json::json!({
+            "name": name,
+            "size": size,
+            "permissions": permissions,
+            "permStr": perm_str,
+            "mtime": mtime,
+            "isDir": is_dir,
+            "isSymlink": is_symlink,
+        }));
+    }
+
+    Ok(serde_json::json!({
+        "path": path,
+        "entries": entries,
+    }))
+}
+
+#[cfg(unix)]
+fn format_unix_permissions(mode: u32) -> String {
+    let file_type = if mode & 0o40000 != 0 {
+        "d"
+    } else if mode & 0o120000 == 0o120000 {
+        "l"
+    } else {
+        "-"
+    };
+
+    let mut perms = String::with_capacity(10);
+    perms.push_str(file_type);
+
+    for shift in (0..3).rev() {
+        let bits = (mode >> (shift * 3)) & 0o7;
+        perms.push(if bits & 4 != 0 { 'r' } else { '-' });
+        perms.push(if bits & 2 != 0 { 'w' } else { '-' });
+        perms.push(if bits & 1 != 0 { 'x' } else { '-' });
+    }
+
+    perms
+}
+
+#[tauri::command]
+async fn get_home_dir() -> Result<String, String> {
+    dirs::home_dir()
+        .map(|p| p.to_string_lossy().to_string())
+        .ok_or_else(|| "Could not determine home directory".to_string())
 }

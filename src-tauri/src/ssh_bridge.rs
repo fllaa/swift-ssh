@@ -11,16 +11,16 @@ pub fn storage_dir() -> PathBuf {
     base.join("SwiftSSH")
 }
 
-/// Returns (python_binary, script_path) for the sidecar.
+/// Returns (python_binary, script_path) for a given sidecar script name.
 /// Uses the bundled venv Python so paramiko is always available.
-pub fn sidecar_paths() -> (PathBuf, PathBuf) {
+pub fn sidecar_paths_for(script_name: &str) -> (PathBuf, PathBuf) {
     let project_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap_or(&PathBuf::from("."))
         .to_path_buf();
 
     let sidecar_dir = project_root.join("sidecar");
-    let script = sidecar_dir.join("main.py");
+    let script = sidecar_dir.join(script_name);
     let venv_python = sidecar_dir.join(".venv").join("bin").join("python3");
 
     if venv_python.exists() && script.exists() {
@@ -32,7 +32,7 @@ pub fn sidecar_paths() -> (PathBuf, PathBuf) {
     if let Ok(exe) = std::env::current_exe() {
         let exe_dir = exe.parent().unwrap_or(&PathBuf::from(".")).to_path_buf();
         let prod_sidecar = exe_dir.join("sidecar");
-        let prod_script = prod_sidecar.join("main.py");
+        let prod_script = prod_sidecar.join(script_name);
         let prod_venv = prod_sidecar.join(".venv").join("bin").join("python3");
         if prod_venv.exists() && prod_script.exists() {
             eprintln!("[ssh_bridge] using prod venv python: {:?}", prod_venv);
@@ -45,7 +45,12 @@ pub fn sidecar_paths() -> (PathBuf, PathBuf) {
     }
 
     eprintln!("[ssh_bridge] WARNING: using fallback paths");
-    (PathBuf::from("python3"), PathBuf::from("sidecar/main.py"))
+    (PathBuf::from("python3"), PathBuf::from(format!("sidecar/{}", script_name)))
+}
+
+/// Convenience: returns paths for the SSH terminal sidecar (main.py).
+pub fn sidecar_paths() -> (PathBuf, PathBuf) {
+    sidecar_paths_for("main.py")
 }
 
 struct Session {

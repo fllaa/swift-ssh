@@ -2,7 +2,7 @@ import { useStore, HostProfile, Group } from "../store/useStore";
 import { v4 as uuidv4 } from "uuid";
 import { invoke } from "@tauri-apps/api/core";
 import { useState, useEffect } from "react";
-import { Search, Plus, Cloud, Layers, Code2, PlusCircle, ChevronRight, Database, Globe, Box, Container, Cpu, HardDrive, Monitor, Edit2, Trash2, Server, ArrowLeft } from "lucide-react";
+import { Search, Plus, Cloud, Layers, Code2, PlusCircle, ChevronRight, Database, Globe, Box, Container, Cpu, HardDrive, Monitor, Edit2, Trash2, Server, ArrowLeft, FolderOpen } from "lucide-react";
 import { getDistroIcon } from "../utils/distroIcon";
 
 interface DashboardProps {
@@ -113,6 +113,7 @@ export default function Dashboard({ onEditHost, onAddHost, onAddGroup, onEditGro
                         hostId: host.id,
                         label: host.label || host.hostname,
                         connected: false,
+                        type: "terminal",
                       });
                     }}
                     onContextMenu={(e) => {
@@ -150,8 +151,8 @@ export default function Dashboard({ onEditHost, onAddHost, onAddGroup, onEditGro
                   <div className="col-span-2 text-right">Action</div>
                 </div>
                 {filteredHosts.map((host) => (
-                  <div 
-                    key={host.id} 
+                  <div
+                    key={host.id}
                     onClick={() => {
                       addTab({
                         tabId: uuidv4(),
@@ -159,6 +160,7 @@ export default function Dashboard({ onEditHost, onAddHost, onAddGroup, onEditGro
                         hostId: host.id,
                         label: host.label || host.hostname,
                         connected: false,
+                        type: "terminal",
                       });
                     }}
                     onContextMenu={(e) => {
@@ -318,8 +320,8 @@ export default function Dashboard({ onEditHost, onAddHost, onAddGroup, onEditGro
             {dashboardViewMode === "grid" ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="host-grid">
                 {activeHosts.map((host) => (
-                  <div 
-                    key={host.id} 
+                  <div
+                    key={host.id}
                     onClick={() => {
                       addTab({
                         tabId: uuidv4(),
@@ -327,6 +329,7 @@ export default function Dashboard({ onEditHost, onAddHost, onAddGroup, onEditGro
                         hostId: host.id,
                         label: host.label || host.hostname,
                         connected: false,
+                        type: "terminal",
                       });
                     }}
                     onContextMenu={(e) => {
@@ -382,8 +385,8 @@ export default function Dashboard({ onEditHost, onAddHost, onAddGroup, onEditGro
                   <div className="col-span-2 text-right">Action</div>
                 </div>
                 {activeHosts.map((host) => (
-                  <div 
-                    key={host.id} 
+                  <div
+                    key={host.id}
                     onClick={() => {
                       addTab({
                         tabId: uuidv4(),
@@ -391,6 +394,7 @@ export default function Dashboard({ onEditHost, onAddHost, onAddGroup, onEditGro
                         hostId: host.id,
                         label: host.label || host.hostname,
                         connected: false,
+                        type: "terminal",
                       });
                     }}
                     onContextMenu={(e) => {
@@ -476,7 +480,25 @@ export default function Dashboard({ onEditHost, onAddHost, onAddGroup, onEditGro
                 <Edit2 className="w-4 h-4 text-slate-400" />
                 Edit Profile
               </button>
-              <button 
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 flex items-center gap-2"
+                onClick={() => {
+                  const host = contextMenu.host!;
+                  addTab({
+                    tabId: uuidv4(),
+                    sessionId: null,
+                    hostId: host.id,
+                    label: `SFTP: ${host.label || host.hostname}`,
+                    connected: false,
+                    type: "sftp",
+                  });
+                  setContextMenu(null);
+                }}
+              >
+                <FolderOpen className="w-4 h-4 text-slate-400" />
+                Open SFTP
+              </button>
+              <button
                 className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-700 flex items-center gap-2 hover:text-red-300"
                 onClick={() => {
                   handleDelete(contextMenu.host!);

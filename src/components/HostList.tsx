@@ -20,6 +20,7 @@ export default function HostList({ onAddHost, onEditHost }: HostListProps) {
       hostId: host.id,
       label: host.label || `${host.username}@${host.hostname}`,
       connected: false,
+      type: "terminal",
     });
   };
 
