@@ -8,20 +8,23 @@ A lightweight, cross-platform desktop SSH client built as an MVP alternative to 
 
 ## Features
 
-- **SSH Connection Manager** — Add, edit, and delete host profiles (hostname, port, username, auth method).
+- **SSH Connection Manager** — Add, edit, and organize host profiles into groups.
+- **Host Grouping** — Organize servers into logical folders/groups for easier management.
+- **Dashboard View Modes** — Switch between Grid and List views with persistent preferences.
 - **Password & Key Auth** — Connect using a password or an imported SSH private key (RSA, Ed25519, ECDSA).
 - **Interactive Terminal** — Fully interactive xterm.js terminal with real-time input/output, cursor blinking, scrollback, and 256-color support.
-- **Tabbed Sessions** — Open multiple simultaneous SSH connections in separate tabs.
-- **SSH Key Manager** — Import private keys from file or paste them directly. Keys are stored locally and assignable to host profiles.
-- **Persistent Storage** — All hosts and keys are saved as JSON files in your OS data directory and persist across restarts.
-- **Dark Mode** — Ships with a dark color palette by default. No light mode toggle needed.
+- **Tabbed Sessions** — Open multiple simultaneous SSH connections with tab management features (Duplicate, Rename, Close).
+- **SSH Key Manager (Keychain)** — Dedicated interface for managing SSH keys with fingerprinting support.
+- **Distro Detection** — Automatic mascot assignment (Ubuntu, Debian, CentOS, etc.) based on host metadata.
+- **Premium Aesthetics** — Glassmorphism, smooth animations, custom-designed icons, and a high-performance loading sequence.
+- **Persistent Storage** — All hosts, groups, and keys are saved locally and persist across restarts.
 
 ---
 
 ## Tech Stack
 
 | Layer | Technology |
-|---|---|
+| :--- | :--- |
 | Desktop framework | [Tauri v2](https://v2.tauri.app) (Rust) |
 | Frontend | [React 19](https://react.dev) + TypeScript + [Vite 6](https://vite.dev) |
 | Styling | [Tailwind CSS v4](https://tailwindcss.com) |
@@ -37,7 +40,7 @@ A lightweight, cross-platform desktop SSH client built as an MVP alternative to 
 Make sure these are installed before getting started:
 
 | Tool | Minimum version | Install |
-|---|---|---|
+| :--- | :--- | :--- |
 | **Node.js** | 18+ | [nodejs.org](https://nodejs.org) |
 | **Rust** | 1.70+ | [rustup.rs](https://rustup.rs) |
 | **Python** | 3.10+ | [python.org](https://www.python.org) |
@@ -104,7 +107,7 @@ The compiled binary and installer will be in `src-tauri/target/release/bundle/`.
 
 ## Project Structure
 
-```
+```text
 SwiftSSH/
 ├── src-tauri/                  # Tauri v2 Rust shell
 │   ├── src/
@@ -147,7 +150,7 @@ SwiftSSH/
 
 ### Data Flow
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │  Frontend (React + xterm.js)                                │
 │                                                             │
@@ -183,7 +186,7 @@ SwiftSSH/
 ### IPC Commands
 
 | Command | Direction | Description |
-|---|---|---|
+| :--- | :--- | :--- |
 | `list_hosts()` | React → Rust | Returns all saved host profiles |
 | `save_host(profile)` | React → Rust | Creates or updates a host profile |
 | `delete_host(host_id)` | React → Rust | Deletes a host profile |
@@ -197,7 +200,7 @@ SwiftSSH/
 ### Events
 
 | Event | Direction | Payload |
-|---|---|---|
+| :--- | :--- | :--- |
 | `ssh-output` | Rust → React | `{ sessionId: string, data: string }` — terminal output |
 | `ssh-disconnected` | Rust → React | `{ sessionId: string }` — session ended |
 
@@ -208,7 +211,7 @@ SwiftSSH/
 All data is stored as plain JSON in your OS local data directory:
 
 | OS | Path |
-|---|---|
+| :--- | :--- |
 | macOS | `~/Library/Application Support/SwiftSSH/` |
 | Linux | `~/.local/share/SwiftSSH/` |
 | Windows | `C:\Users\<user>\AppData\Local\SwiftSSH\` |
@@ -225,7 +228,7 @@ All data is stored as plain JSON in your OS local data directory:
 
 ### Layout
 
-```
+```text
 ┌──────────────┬──────────────────────────────────────┐
 │              │  Tab1 ● │ Tab2 ● │ Tab3 ○ │          │
 │  SwiftSSH    ├──────────────────────────────────────┤
@@ -246,7 +249,7 @@ All data is stored as plain JSON in your OS local data directory:
 ### Color Palette
 
 | Element | Color |
-|---|---|
+| :--- | :--- |
 | Background | `#0f1117` |
 | Sidebar | `#1e2130` |
 | Borders | `#2a2d3e` |
@@ -337,9 +340,13 @@ The Rust backend couldn't find or execute `python3`. Make sure:
 
 ## Roadmap
 
+- [x] Host groups / folders
+- [x] Dashboard view modes (Grid / List)
+- [x] Advanced session management (Duplicate / Rename tabs)
+- [x] Premium application icons and loading animations
+- [x] Distro logo auto-detection
 - [ ] SFTP file browser / transfer
 - [ ] Encrypted storage for passwords and keys (OS keychain integration)
-- [ ] Host groups / folders
 - [ ] SSH agent forwarding
 - [ ] Port forwarding (local/remote tunnels)
 - [ ] Snippet / command library
