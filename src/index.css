@@ -6,6 +6,50 @@
   --color-navy-sidebar: #0f172a;
   --color-card-slate: #1C2333;
   --color-accent-blue: #3b82f6;
+  --color-border-slate: #1e293b;
+}
+
+/* Custom Tab Styling */
+.tab-curve-active {
+  background-color: var(--color-space-dark);
+  position: relative;
+  z-index: 20;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  transform: translateY(1px); /* Overlap title bar border */
+  height: 34px; /* Slightly shorter than title bar (40px) */
+}
+
+.tab-curve-active::before,
+.tab-curve-active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  background-color: transparent;
+  pointer-events: none;
+}
+
+.tab-curve-active::before {
+  left: -16px;
+  border-bottom-right-radius: 16px;
+  box-shadow: 6px 4px 0 0 var(--color-space-dark); /* Increased shadow depth to cover border strictly */
+}
+
+.tab-curve-active::after {
+  right: -16px;
+  border-bottom-left-radius: 16px;
+  box-shadow: -6px 4px 0 0 var(--color-space-dark);
+}
+
+/* Utilities */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 @font-face {

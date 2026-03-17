@@ -19,7 +19,6 @@ export default function TerminalTab({ tabId, hostId }: TerminalTabProps) {
   useEffect(() => {
     if (!containerRef.current) return;
 
-
     const term = new Terminal({
       theme: {
         background: "#0f1117",
@@ -64,7 +63,9 @@ export default function TerminalTab({ tabId, hostId }: TerminalTabProps) {
         invoke("send_input", {
           sessionId: sessionIdRef.current,
           data,
-        }).catch((err) => console.error("[TerminalTab] send_input error:", err));
+        }).catch((err) =>
+          console.error("[TerminalTab] send_input error:", err),
+        );
       }
     });
 
@@ -80,7 +81,7 @@ export default function TerminalTab({ tabId, hostId }: TerminalTabProps) {
         ) {
           term.write(event.payload.data);
         }
-      }
+      },
     );
 
     // Initiate connection immediately — don't wait for listen() to resolve.
@@ -111,7 +112,7 @@ export default function TerminalTab({ tabId, hostId }: TerminalTabProps) {
       term.dispose();
       if (sessionIdRef.current) {
         invoke("disconnect_host", { sessionId: sessionIdRef.current }).catch(
-          () => {}
+          () => {},
         );
       }
     };

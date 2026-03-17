@@ -15,7 +15,6 @@ import {
   Cloud,
   ChevronDown,
   Server,
-  Bell,
 } from "lucide-react";
 
 export default function App() {
@@ -80,66 +79,72 @@ export default function App() {
       {/* True Application Title Bar (Overlay) */}
       <div
         data-tauri-drag-region
-        className={`h-10 flex items-center pr-4 bg-[#0B1021] shrink-0 border-b border-slate-800 transition-all duration-300 ${isFullscreen ? "pl-4" : "pl-[84px]"}`}
+        className={`h-10 flex items-end pr-4 bg-[#202638] shrink-0 border-b border-slate-800 transition-all duration-300 ${isFullscreen ? "pl-4" : "pl-[84px]"}`}
       >
-        {/* Vault Button Group */}
-        <div className="flex items-stretch shrink-0 -space-x-px h-7" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-          <button 
-            onClick={() => setActiveTab(null)}
-            className="relative z-10 flex items-center space-x-2 px-3 bg-card-slate rounded-l-md cursor-pointer border border-slate-700 hover:bg-slate-800/50 hover:border-slate-500 hover:z-20 transition-all text-sm font-medium shrink-0"
-          >
-            <Cloud className="w-4 h-4 text-slate-400" />
-            <span>{activeVault?.name || "Main Vault"}</span>
-          </button>
-          <button className="relative z-10 flex items-center justify-center px-2 bg-card-slate rounded-r-md cursor-pointer border border-slate-700 hover:bg-slate-800/50 hover:border-slate-500 hover:z-20 transition-all text-sm font-medium shrink-0">
-            <ChevronDown className="w-3 h-3 text-slate-500" />
-          </button>
+        {/* Vault Tab Design */}
+        <div 
+          className={`flex items-end shrink-0 h-full relative group ${activeTabId === null ? 'tab-curve-active z-20' : 'z-10'}`}
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+        >
+          <div className={`flex items-center -space-x-px transition-all ${activeTabId === null ? 'h-full px-2' : 'h-8 mb-0.5 px-1'}`}>
+            <button 
+              onClick={() => setActiveTab(null)}
+              className={`flex items-center gap-2 px-3 h-full cursor-pointer transition-colors text-sm font-medium ${activeTabId === null ? 'text-white' : 'text-slate-400 hover:text-slate-200'}`}
+            >
+              <Cloud className={`w-4 h-4 transition-colors ${activeTabId === null ? 'text-blue-400' : 'text-slate-500'}`} />
+              <span className="truncate">{activeVault?.name || "Main Vault"}</span>
+            </button>
+            <button className={`flex items-center justify-center px-1.5 h-full cursor-pointer transition-colors ${activeTabId === null ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-300'}`}>
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
-
-        {/* Separator inside Title bar */}
-        {tabs.length > 0 && (
-          <div className="w-px h-4 bg-slate-700 mx-3 shrink-0" />
-        )}
 
         {/* Tabs inside Title bar */}
-        <div className="flex-1 flex overflow-x-auto items-center space-x-1 relative no-scrollbar" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-          {tabs.map((tab) => (
-            <div
-              key={tab.tabId}
-              onClick={() => setActiveTab(tab.tabId)}
-              className={`flex items-center gap-2 px-3 py-1 cursor-pointer text-sm rounded-md shrink-0 transition-all ${
-                tab.tabId === activeTabId
-                  ? "bg-slate-700/40 text-white border border-slate-700/50"
-                  : "bg-transparent text-slate-400 hover:bg-slate-800 hover:text-slate-200 border border-transparent"
-              }`}
-            >
-              <Server className={`w-3.5 h-3.5 ${tab.connected ? 'text-green-500' : 'text-orange-400'}`} />
-              <span className="truncate max-w-[120px]">{tab.label}</span>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (tab.sessionId) {
-                    invoke("disconnect_host", { sessionId: tab.sessionId }).catch(() => {});
-                  }
-                  removeTab(tab.tabId);
-                }}
-                className="ml-1 text-slate-500 hover:text-white"
-              >
-                ×
+        <div className="flex-1 flex justify-start h-full relative" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+          <div className="flex items-end space-x-1 px-4 overflow-x-auto no-scrollbar h-full">
+            {tabs.map((tab) => {
+              const isActive = tab.tabId === activeTabId;
+              let statusColor = "text-slate-500";
+              if (isActive) {
+                statusColor = tab.connected ? "text-green-500" : "text-orange-400";
+              }
+
+              return (
+                <div
+                  key={tab.tabId}
+                  onClick={() => setActiveTab(tab.tabId)}
+                  className={`group relative flex items-center gap-2 px-5 cursor-pointer text-sm font-medium transition-all duration-200 ${
+                    isActive
+                      ? "tab-curve-active text-white"
+                      : "text-slate-400 hover:text-slate-200 h-8 mb-0.5"
+                  }`}
+                >
+                  <Server className={`w-3.5 h-3.5 ${statusColor}`} />
+                  <span className="truncate max-w-40">{tab.label}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (tab.sessionId) {
+                        invoke("disconnect_host", { sessionId: tab.sessionId }).catch(() => {});
+                      }
+                      removeTab(tab.tabId);
+                    }}
+                    className={`ml-1 transition-opacity duration-200 ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} text-slate-500 hover:text-white`}
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            })}
+            {tabs.length > 0 && (
+              <button className="flex items-center justify-center p-1.5 text-slate-500 hover:text-white mb-1.5 ml-1 hover:bg-slate-800 rounded-md transition-colors">
+                <Plus className="w-4 h-4" />
               </button>
-            </div>
-          ))}
-          {tabs.length > 0 && (
-            <button className="flex items-center justify-center p-1 text-slate-500 hover:text-white ml-1">
-              <Plus className="w-4 h-4" />
-            </button>
-          )}
+            )}
+          </div>
         </div>
 
-        {/* Action icons */}
-        <div className="flex items-center space-x-3 shrink-0 ml-4">
-          <Bell className="w-4 h-4 text-slate-500 hover:text-white cursor-pointer" />
-        </div>
       </div>
 
       {/* Main App Row */}
