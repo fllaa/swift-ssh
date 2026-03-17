@@ -49,6 +49,7 @@ interface AppState {
   tabs: TabSession[];
   activeTabId: string | null;
   sidebarView: "hosts" | "keys";
+  dashboardViewMode: "grid" | "list";
 
   setHosts: (hosts: HostProfile[]) => void;
   addHost: (host: HostProfile) => void;
@@ -75,6 +76,7 @@ interface AppState {
 
   renameTab: (tabId: string, label: string) => void;
   setSidebarView: (view: "hosts" | "keys") => void;
+  setDashboardViewMode: (mode: "grid" | "list") => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -90,6 +92,7 @@ export const useStore = create<AppState>((set) => ({
   tabs: [],
   activeTabId: null,
   sidebarView: "hosts",
+  dashboardViewMode: "grid",
 
   setHosts: (hosts) => set({ hosts }),
   addHost: (host) => set((s) => ({ hosts: [...s.hosts, host] })),
@@ -141,4 +144,5 @@ export const useStore = create<AppState>((set) => ({
       tabs: s.tabs.map((t) => (t.tabId === tabId ? { ...t, label } : t)),
     })),
   setSidebarView: (view) => set({ sidebarView: view }),
+  setDashboardViewMode: (mode) => set({ dashboardViewMode: mode }),
 }));

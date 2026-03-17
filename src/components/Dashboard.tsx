@@ -2,7 +2,7 @@ import { useStore, HostProfile } from "../store/useStore";
 import { v4 as uuidv4 } from "uuid";
 import { invoke } from "@tauri-apps/api/core";
 import { useState, useEffect } from "react";
-import { Search, LayoutGrid, List, Plus, Cloud, Layers, Code2, PlusCircle, ChevronRight, Database, Globe, Box, Container, Cpu, HardDrive, Monitor, Edit2, Trash2 } from "lucide-react";
+import { Search, Plus, Cloud, Layers, Code2, PlusCircle, ChevronRight, Database, Globe, Box, Container, Cpu, HardDrive, Monitor, Edit2, Trash2 } from "lucide-react";
 
 interface DashboardProps {
   onEditHost: (host: HostProfile) => void;
@@ -10,7 +10,7 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ onEditHost, onAddHost }: DashboardProps) {
-  const { hosts, groups, activeVaultId, addTab, removeHost } = useStore();
+  const { hosts, groups, activeVaultId, addTab, removeHost, dashboardViewMode } = useStore();
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, host: HostProfile } | null>(null);
 
   // Close context menu on click outside
@@ -38,91 +38,230 @@ export default function Dashboard({ onEditHost, onAddHost }: DashboardProps) {
       {/* Section 1: Groups */}
       <section data-purpose="groups-section">
         <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Groups</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {currentGroups.map((group) => {
-            const groupHosts = hosts.filter((h) => h.groupId === group.id);
-            return (
-              <div
-                key={group.id}
-                className="bg-card-slate border border-slate-800 rounded-xl p-4 hover:border-slate-600 cursor-pointer transition-all group"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-blue-500/10 rounded-lg">
-                      <Layers className="w-5 h-5 text-blue-500" />
+        {dashboardViewMode === "grid" ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {currentGroups.map((group) => {
+              const groupHosts = hosts.filter((h) => h.groupId === group.id);
+              return (
+                <div
+                  key={group.id}
+                  className="bg-card-slate border border-slate-800 rounded-xl p-4 hover:border-slate-600 cursor-pointer transition-all group"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-blue-500/10 rounded-lg">
+                        <Layers className="w-5 h-5 text-blue-500" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-white">{group.name}</h3>
+                        <p className="text-xs text-slate-400">{groupHosts.length} hosts</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-medium text-white">{group.name}</h3>
-                      <p className="text-xs text-slate-400">{groupHosts.length} hosts</p>
-                    </div>
+                    <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400" />
                   </div>
-                  <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400" />
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
 
-          {/* Add New Group */}
-          <div className="border border-dashed border-slate-700 rounded-xl p-4 flex items-center justify-center hover:bg-slate-800/50 cursor-pointer transition-all">
-            <div className="flex items-center space-x-2 text-slate-500">
-              <PlusCircle className="w-4 h-4" />
-              <span className="text-sm font-medium">Add Group</span>
+            {/* Add New Group */}
+            <div className="border border-dashed border-slate-700 rounded-xl p-4 flex items-center justify-center hover:bg-slate-800/50 cursor-pointer transition-all">
+              <div className="flex items-center space-x-2 text-slate-500">
+                <PlusCircle className="w-4 h-4" />
+                <span className="text-sm font-medium">Add Group</span>
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="flex flex-col space-y-1.5" id="groups-list">
+            <div className="grid grid-cols-12 px-5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800/50 mb-2">
+              <div className="col-span-5">Group Name</div>
+              <div className="col-span-5">Summary</div>
+              <div className="col-span-2 text-right">Action</div>
+            </div>
+            {currentGroups.map((group) => {
+              const groupHosts = hosts.filter((h) => h.groupId === group.id);
+              return (
+                <div 
+                  key={group.id} 
+                  className="grid grid-cols-12 items-center bg-card-slate border border-slate-800/50 rounded-xl px-5 py-3 hover:bg-slate-800/60 hover:border-slate-700 transition-all cursor-pointer group"
+                >
+                  <div className="col-span-5 flex items-center space-x-4">
+                    <div className="p-2 bg-blue-500/10 rounded-lg group-hover:bg-blue-500/20 transition-colors">
+                      <Layers className="w-4 h-4 text-blue-500" />
+                    </div>
+                    <span className="font-semibold text-slate-200 truncate">{group.name}</span>
+                  </div>
+                  <div className="col-span-5 text-[11px] text-slate-500">
+                    {groupHosts.length} hosts
+                  </div>
+                  <div className="col-span-2 flex justify-end">
+                    <div className="p-1.5 rounded-lg bg-slate-900/50 border border-slate-800 text-slate-500 group-hover:text-blue-400 group-hover:border-blue-400/30 transition-all">
+                      <ChevronRight className="w-4 h-4" />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            
+            {/* Add Placeholder in List Mode */}
+            <div className="border border-dashed border-slate-800 rounded-xl p-3 flex items-center justify-center hover:bg-slate-800/30 cursor-pointer transition-all space-x-2 group mt-2">
+              <PlusCircle className="w-4 h-4 text-slate-600 group-hover:text-slate-400" />
+              <span className="text-sm font-medium text-slate-500 group-hover:text-slate-400">Add New Group</span>
+            </div>
+          </div>
+        )}
       </section>
 
-      {/* Section 2: Hosts Bento Grid */}
+      {/* Section 2: Hosts */}
       <section data-purpose="hosts-section">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider">All Hosts</h2>
           <span className="text-xs text-slate-500">Showing {activeHosts.length} hosts</span>
         </div>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="host-grid">
-          {activeHosts.map((host) => (
-            <div 
-              key={host.id} 
-              onClick={() => {
-                addTab({
-                  tabId: uuidv4(),
-                  sessionId: null,
-                  hostId: host.id,
-                  label: host.label || host.hostname,
-                  connected: false,
-                });
-              }}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                setContextMenu({
-                  x: e.clientX,
-                  y: e.clientY,
-                  host
-                });
-              }}
-              className="bg-card-slate border border-slate-800 rounded-xl p-5 hover:bg-slate-800/80 hover:scale-[1.01] transition-all cursor-pointer relative group"
-            >
-              <div className="flex items-start space-x-4">
-                <div className="p-2.5 bg-slate-900 rounded-lg border border-slate-700">
-                  <Database className="w-6 h-6 text-blue-400" />
+        {dashboardViewMode === "grid" ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" id="host-grid">
+            {activeHosts.map((host) => (
+              <div 
+                key={host.id} 
+                onClick={() => {
+                  addTab({
+                    tabId: uuidv4(),
+                    sessionId: null,
+                    hostId: host.id,
+                    label: host.label || host.hostname,
+                    connected: false,
+                  });
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setContextMenu({
+                    x: e.clientX,
+                    y: e.clientY,
+                    host
+                  });
+                }}
+                className="bg-card-slate border border-slate-800 rounded-xl p-5 hover:bg-slate-800/80 hover:scale-[1.01] transition-all cursor-pointer relative group flex flex-col justify-between h-full"
+              >
+                <div className="flex items-start space-x-4">
+                  <div className="p-2.5 bg-slate-900 rounded-lg border border-slate-700">
+                    {host.osIcon ? (
+                      <img src={`/icons/os/${host.osIcon}.svg`} className="w-6 h-6" alt={host.osIcon} onError={(e) => {
+                        (e.target as HTMLImageElement).src = ""; 
+                        (e.target as HTMLImageElement).className = "hidden";
+                        (e.target as any).parentNode.innerHTML = '<svg class="w-6 h-6 text-blue-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round header-icon"><path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/><path d="M3 9V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4"/><path d="M13 13h1"/><path d="M13 17h1"/><path d="M9 13h1"/><path d="M9 17h1"/></svg>';
+                      }} />
+                    ) : (
+                      <Database className="w-6 h-6 text-blue-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-white truncate">{host.label || host.hostname}</h3>
+                    <p className="text-xs text-slate-500 mt-0.5 truncate">{host.username}@{host.hostname}</p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-white truncate">{host.label || host.hostname}</h3>
-                  <p className="text-xs text-slate-500 mt-0.5 truncate">{host.username}@{host.hostname}</p>
+                {host.tags && (
+                  <div className="flex flex-wrap gap-1 mt-4">
+                    {host.tags.split(",").map((tag, i) => (
+                      <span key={i} className="px-1.5 py-0.5 bg-slate-800 text-[10px] text-slate-400 rounded-md border border-slate-700">
+                        {tag.trim()}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* Add Placeholder */}
+            <div 
+              onClick={onAddHost}
+              className="border border-dashed border-slate-700 rounded-xl p-5 flex flex-col items-center justify-center hover:bg-slate-800/30 cursor-pointer transition-all space-y-2 opacity-60 min-h-32"
+            >
+              <Plus className="w-8 h-8 text-slate-600" />
+              <span className="text-sm font-medium text-slate-500">Connect New Server</span>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col space-y-1.5" id="host-list">
+            <div className="grid grid-cols-12 px-5 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-800/50 mb-2">
+              <div className="col-span-4">Host Details</div>
+              <div className="col-span-3">Configuration</div>
+              <div className="col-span-3">Tags</div>
+              <div className="col-span-2 text-right">Action</div>
+            </div>
+            {activeHosts.map((host) => (
+              <div 
+                key={host.id} 
+                onClick={() => {
+                  addTab({
+                    tabId: uuidv4(),
+                    sessionId: null,
+                    hostId: host.id,
+                    label: host.label || host.hostname,
+                    connected: false,
+                  });
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setContextMenu({
+                    x: e.clientX,
+                    y: e.clientY,
+                    host
+                  });
+                }}
+                className="grid grid-cols-12 items-center bg-card-slate border border-slate-800/50 rounded-xl px-5 py-3 hover:bg-slate-800/60 hover:border-slate-700 transition-all cursor-pointer group"
+              >
+                <div className="col-span-4 flex items-center space-x-4">
+                  <div className="p-2 bg-slate-900 rounded-lg border border-slate-700 group-hover:border-blue-500/30 transition-colors">
+                    {host.osIcon ? (
+                      <img src={`/icons/os/${host.osIcon}.svg`} className="w-4 h-4" alt={host.osIcon} onError={(e) => {
+                        (e.target as HTMLImageElement).src = ""; 
+                        (e.target as HTMLImageElement).className = "hidden";
+                        (e.target as any).parentNode.innerHTML = '<svg class="w-4 h-4 text-blue-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round header-icon"><path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/><path d="M3 9V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4"/><path d="M13 13h1"/><path d="M13 17h1"/><path d="M9 13h1"/><path d="M9 17h1"/></svg>';
+                      }} />
+                    ) : (
+                      <Database className="w-4 h-4 text-blue-400" />
+                    )}
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-semibold text-slate-200 truncate">{host.label || host.hostname}</span>
+                    <span className="text-[11px] text-slate-500 truncate">{host.hostname}</span>
+                  </div>
+                </div>
+                <div className="col-span-3">
+                  <code className="text-[11px] px-2 py-0.5 bg-slate-900 text-slate-400 rounded border border-slate-800">
+                    {host.username}@{host.port || 22}
+                  </code>
+                </div>
+                <div className="col-span-3 flex items-center gap-1.5 flex-wrap">
+                  {host.tags ? (
+                    host.tags.split(",").map((tag, i) => (
+                      <span key={i} className="px-1.5 py-0.5 bg-slate-900/50 text-[10px] text-slate-500 rounded border border-slate-800/50">
+                        {tag.trim()}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-[10px] text-slate-600 italic">No tags</span>
+                  )}
+                </div>
+                <div className="col-span-2 flex justify-end">
+                  <div className="p-1.5 rounded-lg bg-slate-900/50 border border-slate-800 text-slate-500 group-hover:text-blue-400 group-hover:border-blue-400/30 transition-all">
+                    <ChevronRight className="w-4 h-4" />
+                  </div>
                 </div>
               </div>
+            ))}
+            
+            {/* Add Placeholder in List Mode */}
+            <div 
+              onClick={onAddHost}
+              className="border border-dashed border-slate-800 rounded-xl p-3 flex items-center justify-center hover:bg-slate-800/30 cursor-pointer transition-all space-x-2 group mt-2"
+            >
+              <Plus className="w-4 h-4 text-slate-600 group-hover:text-slate-400" />
+              <span className="text-sm font-medium text-slate-500 group-hover:text-slate-400">Add New Connection</span>
             </div>
-          ))}
-
-          {/* Add Placeholder */}
-          <div 
-            onClick={onAddHost}
-            className="border border-dashed border-slate-700 rounded-xl p-5 flex flex-col items-center justify-center hover:bg-slate-800/30 cursor-pointer transition-all space-y-2 opacity-60"
-          >
-            <Plus className="w-8 h-8 text-slate-600" />
-            <span className="text-sm font-medium text-slate-500">Connect New Server</span>
           </div>
-        </div>
+        )}
       </section>
 
       {/* Context Menu */}

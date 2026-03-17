@@ -34,6 +34,8 @@ export default function App() {
     renameTab,
     vaults,
     activeVaultId,
+    dashboardViewMode,
+    setDashboardViewMode,
   } = useStore();
   const [showAddHost, setShowAddHost] = useState(false);
   const [editHost, setEditHost] = useState<HostProfile | null>(null);
@@ -303,10 +305,16 @@ export default function App() {
               </div>
               <div className="flex items-center space-x-4">
                 <div className="flex items-center bg-slate-900 rounded-lg p-1 border border-slate-800">
-                  <button className="p-1.5 rounded bg-slate-800 text-white">
+                  <button 
+                    onClick={() => setDashboardViewMode("grid")}
+                    className={`p-1.5 rounded transition-all ${dashboardViewMode === "grid" ? "bg-slate-800 text-white" : "text-slate-500 hover:text-slate-300"}`}
+                  >
                     <LayoutGrid className="w-4 h-4" />
                   </button>
-                  <button className="p-1.5 rounded text-slate-500 hover:text-white">
+                  <button 
+                    onClick={() => setDashboardViewMode("list")}
+                    className={`p-1.5 rounded transition-all ${dashboardViewMode === "list" ? "bg-slate-800 text-white" : "text-slate-500 hover:text-slate-300"}`}
+                  >
                     <List className="w-4 h-4" />
                   </button>
                 </div>
