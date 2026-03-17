@@ -82,14 +82,42 @@ def main():
             tmp.write(args.key_content)
             tmp.close()
             try:
-                pkey = paramiko.RSAKey.from_private_key_file(tmp.name)
-            except paramiko.ssh_exception.SSHException:
                 try:
-                    pkey = paramiko.Ed25519Key.from_private_key_file(tmp.name)
-                except Exception:
-                    pkey = paramiko.ECDSAKey.from_private_key_file(tmp.name)
-            os.unlink(tmp.name)
-            connect_kwargs["pkey"] = pkey
+                    pkey = paramiko.RSAKey.from_private_key_file(tmp.name)
+                except paramiko.ssh_exception.PasswordRequiredException:
+                    raise
+                except paramiko.ssh_exception.SSHException:
+                    try:
+                        pkey = paramiko.Ed25519Key.from_private_key_file(tmp.name)
+                    except paramiko.ssh_exception.PasswordRequiredException:
+                        raise
+                    except Exception:
+                        try:
+                            pkey = paramiko.ECDSAKey.from_private_key_file(tmp.name)
+                        except paramiko.ssh_exception.PasswordRequiredException:
+                            raise
+                        except Exception:
+                            raise Exception("Invalid private key format")
+                os.unlink(tmp.name)
+                connect_kwargs["pkey"] = pkey
+            except paramiko.ssh_exception.PasswordRequiredException:
+                os.unlink(tmp.name)
+                log("Key requires a passphrase")
+                if args.test:
+                    sys.stdout.write("FAIL:Key requires a passphrase (unsupported)\n")
+                    sys.stdout.flush()
+                    sys.exit(1)
+                emit_status("error:Key requires a passphrase (unsupported)")
+                sys.exit(1)
+            except Exception as e:
+                os.unlink(tmp.name)
+                log(f"Key format error: {str(e)}")
+                if args.test:
+                    sys.stdout.write("FAIL:Invalid private key format\n")
+                    sys.stdout.flush()
+                    sys.exit(1)
+                emit_status("error:Invalid private key format")
+                sys.exit(1)
         else:
             connect_kwargs["password"] = password
 
