@@ -52,6 +52,7 @@ def main():
     parser.add_argument("--session-id", required=True, help="Session ID")
     parser.add_argument("--key-content", default=None, help="Private key content")
     parser.add_argument("--test", action="store_true", help="Test connection only")
+    parser.add_argument("--detect-distro", action="store_true", help="Detect OS distro only")
     args = parser.parse_args()
 
     host = json.loads(args.host_json)
@@ -94,6 +95,28 @@ def main():
 
         client.connect(**connect_kwargs)
         log("SSH connected successfully")
+
+        if args.detect_distro:
+            try:
+                _, stdout_stream, _ = client.exec_command("cat /etc/os-release 2>/dev/null || uname -s", timeout=10)
+                output = stdout_stream.read().decode("utf-8", errors="replace")
+                distro_id = ""
+                for line in output.splitlines():
+                    if line.startswith("ID="):
+                        distro_id = line[3:].strip().strip('"').lower()
+                        break
+                if not distro_id:
+                    # Fallback: uname output
+                    distro_id = output.strip().lower()
+                sys.stdout.write(distro_id + "\n")
+                sys.stdout.flush()
+                log(f"detect_distro: id={distro_id}")
+            except Exception as e:
+                log(f"detect_distro error: {e}")
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+            client.close()
+            sys.exit(0)
 
         if args.test:
             transport = client.get_transport()

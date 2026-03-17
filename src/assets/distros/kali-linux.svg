@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="48" fill="#1a1a2e"/>
+  <!-- Dragon head simplified as stylized K -->
+  <!-- Dragon wing/tail shape -->
+  <path d="M30 75 Q20 50 35 30 Q45 18 55 22 Q65 26 60 38 Q56 48 62 55 Q72 65 68 78 L50 72 Z" fill="#2962FF"/>
+  <path d="M68 78 Q80 82 82 70 Q84 58 72 50 Q78 42 70 32 Q62 22 50 20" stroke="#5C8AFF" stroke-width="2" fill="none"/>
+  <!-- Eye -->
+  <circle cx="52" cy="34" r="4" fill="white"/>
+  <circle cx="53" cy="34" r="2" fill="#1a1a2e"/>
+</svg>

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="48" fill="#262577"/>
+  <!-- CentOS quadrant logo -->
+  <!-- Top-left: purple -->
+  <path d="M50 50 L18 18 L50 18Z" fill="#9B59B6"/>
+  <path d="M50 50 L18 18 L18 50Z" fill="#9B59B6" opacity="0.7"/>
+  <!-- Top-right: yellow -->
+  <path d="M50 50 L82 18 L50 18Z" fill="#EFC02D"/>
+  <path d="M50 50 L82 18 L82 50Z" fill="#EFC02D" opacity="0.7"/>
+  <!-- Bottom-left: green -->
+  <path d="M50 50 L18 82 L18 50Z" fill="#4CAF50"/>
+  <path d="M50 50 L18 82 L50 82Z" fill="#4CAF50" opacity="0.7"/>
+  <!-- Bottom-right: pink/red -->
+  <path d="M50 50 L82 82 L82 50Z" fill="#E74C3C"/>
+  <path d="M50 50 L82 82 L50 82Z" fill="#E74C3C" opacity="0.7"/>
+  <!-- Center cross -->
+  <rect x="46" y="18" width="8" height="64" fill="#262577"/>
+  <rect x="18" y="46" width="64" height="8" fill="#262577"/>
+  <circle cx="50" cy="50" r="8" fill="#262577"/>
+</svg>

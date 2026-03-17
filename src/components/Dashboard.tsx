@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { invoke } from "@tauri-apps/api/core";
 import { useState, useEffect } from "react";
 import { Search, Plus, Cloud, Layers, Code2, PlusCircle, ChevronRight, Database, Globe, Box, Container, Cpu, HardDrive, Monitor, Edit2, Trash2, Server, ArrowLeft } from "lucide-react";
+import { getDistroIcon } from "../utils/distroIcon";
 
 interface DashboardProps {
   onEditHost: (host: HostProfile) => void;
@@ -126,8 +127,8 @@ export default function Dashboard({ onEditHost, onAddHost, onAddGroup, onEditGro
                   >
                     <div className="flex items-start space-x-4">
                       <div className="p-2.5 bg-slate-900 rounded-lg border border-slate-700">
-                        {host.osIcon ? (
-                          <img src={`/icons/os/${host.osIcon}.svg`} className="w-6 h-6" alt={host.osIcon} />
+                        {getDistroIcon(host.osIcon) ? (
+                          <img src={getDistroIcon(host.osIcon)!} className="w-6 h-6" alt={host.osIcon} />
                         ) : (
                           <Database className="w-6 h-6 text-blue-400" />
                         )}
@@ -340,12 +341,8 @@ export default function Dashboard({ onEditHost, onAddHost, onAddGroup, onEditGro
                   >
                     <div className="flex items-start space-x-4">
                       <div className="p-2.5 bg-slate-900 rounded-lg border border-slate-700">
-                        {host.osIcon ? (
-                          <img src={`/icons/os/${host.osIcon}.svg`} className="w-6 h-6" alt={host.osIcon} onError={(e) => {
-                            (e.target as HTMLImageElement).src = ""; 
-                            (e.target as HTMLImageElement).className = "hidden";
-                            (e.target as any).parentNode.innerHTML = '<svg class="w-6 h-6 text-blue-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round header-icon"><path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/><path d="M3 9V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4"/><path d="M13 13h1"/><path d="M13 17h1"/><path d="M9 13h1"/><path d="M9 17h1"/></svg>';
-                          }} />
+                        {getDistroIcon(host.osIcon) ? (
+                          <img src={getDistroIcon(host.osIcon)!} className="w-6 h-6" alt={host.osIcon} />
                         ) : (
                           <Database className="w-6 h-6 text-blue-400" />
                         )}
@@ -408,11 +405,10 @@ export default function Dashboard({ onEditHost, onAddHost, onAddGroup, onEditGro
                   >
                     <div className="col-span-4 flex items-center space-x-4">
                       <div className="p-2 bg-slate-900 rounded-lg border border-slate-700 group-hover:border-blue-500/30 transition-colors">
-                        {host.osIcon ? (
-                          <img src={`/icons/os/${host.osIcon}.svg`} className="w-4 h-4" alt={host.osIcon} onError={(e) => {
-                            (e.target as HTMLImageElement).src = ""; 
+                        {getDistroIcon(host.osIcon) ? (
+                          <img src={getDistroIcon(host.osIcon)!} className="w-4 h-4" alt={host.osIcon} onError={(e) => {
+                            (e.target as HTMLImageElement).src = "";
                             (e.target as HTMLImageElement).className = "hidden";
-                            (e.target as any).parentNode.innerHTML = '<svg class="w-4 h-4 text-blue-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round header-icon"><path d="M3 9h18v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9Z"/><path d="M3 9V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4"/><path d="M13 13h1"/><path d="M13 17h1"/><path d="M9 13h1"/><path d="M9 17h1"/></svg>';
                           }} />
                         ) : (
                           <Database className="w-4 h-4 text-blue-400" />

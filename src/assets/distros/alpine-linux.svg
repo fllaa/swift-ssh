@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="48" fill="#0D597F"/>
+  <!-- Snow-capped mountain -->
+  <polygon points="50,15 82,75 18,75" fill="white"/>
+  <!-- Snow cap -->
+  <polygon points="50,15 62,40 38,40" fill="#0D597F"/>
+  <!-- Cross-ridge (Alpine A crossbar) -->
+  <rect x="33" y="55" width="34" height="6" rx="2" fill="#0D597F"/>
+</svg>

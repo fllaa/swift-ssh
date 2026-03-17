@@ -4,6 +4,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useStore } from "../store/useStore";
+import { normalizeDistroId } from "../utils/distroIcon";
 
 interface TerminalTabProps {
   tabId: string;
@@ -15,6 +16,7 @@ export default function TerminalTab({ tabId, hostId }: TerminalTabProps) {
   const termRef = useRef<Terminal | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const setTabSessionId = useStore((s) => s.setTabSessionId);
+  const { hosts, updateHost } = useStore();
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -93,6 +95,20 @@ export default function TerminalTab({ tabId, hostId }: TerminalTabProps) {
         sessionIdRef.current = sessionId;
         setTabSessionId(tabId, sessionId);
         term.clear();
+
+        // Auto-detect distro in background and persist the icon
+        invoke<string>("detect_distro", { hostId })
+          .then((rawId) => {
+            if (!rawId) return;
+            const iconKey = normalizeDistroId(rawId);
+            const host = hosts.find((h) => h.id === hostId);
+            if (host && host.osIcon !== iconKey) {
+              const updated = { ...host, osIcon: iconKey };
+              updateHost(updated);
+              invoke("save_host", { profile: updated }).catch(console.error);
+            }
+          })
+          .catch(() => {/* detection failure is non-fatal */});
       })
       .catch((err) => {
         console.error("[TerminalTab] connect failed:", err);

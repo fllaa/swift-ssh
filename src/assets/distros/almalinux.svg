@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- 4-petal flower, AlmaLinux gradient colors -->
+  <circle cx="50" cy="50" r="48" fill="#1c1c1c"/>
+  <!-- Top-left petal (blue) -->
+  <ellipse cx="35" cy="35" rx="16" ry="22" fill="#5592CE" transform="rotate(-45 35 35)"/>
+  <!-- Top-right petal (green) -->
+  <ellipse cx="65" cy="35" rx="16" ry="22" fill="#4CAF50" transform="rotate(45 65 35)"/>
+  <!-- Bottom-left petal (yellow) -->
+  <ellipse cx="35" cy="65" rx="16" ry="22" fill="#E6B222" transform="rotate(45 35 65)"/>
+  <!-- Bottom-right petal (red) -->
+  <ellipse cx="65" cy="65" rx="16" ry="22" fill="#CE5252" transform="rotate(-45 65 65)"/>
+  <!-- Center -->
+  <circle cx="50" cy="50" r="7" fill="white"/>
+</svg>

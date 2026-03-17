@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="48" fill="#CC0000"/>
+  <!-- Hat brim -->
+  <ellipse cx="50" cy="62" rx="38" ry="10" fill="white"/>
+  <!-- Hat crown -->
+  <path d="M24 62 Q22 36 50 28 Q78 36 76 62Z" fill="white"/>
+  <!-- Hat band -->
+  <ellipse cx="50" cy="56" rx="26" ry="6" fill="#CC0000"/>
+</svg>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="48" fill="#A81D33"/>
+  <!-- Debian swirl approximation -->
+  <path d="M50 20 C68 20 82 34 82 52 C82 68 70 80 54 82 C40 84 26 76 22 62 C18 50 24 38 36 32 C44 28 54 30 60 38 C66 46 64 56 56 60 C50 64 44 60 42 54 C40 48 44 44 50 46" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+</svg>

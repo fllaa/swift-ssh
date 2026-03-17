@@ -24,6 +24,7 @@ pub fn run() {
             list_groups,
             save_group,
             delete_group,
+            detect_distro,
             connect_host,
             disconnect_host,
             send_input,
@@ -196,6 +197,57 @@ async fn delete_group(group_id: String) -> Result<(), String> {
     let data = serde_json::to_string_pretty(&groups).map_err(|e| e.to_string())?;
     std::fs::write(&path, data).map_err(|e| e.to_string())?;
     Ok(())
+}
+
+// ── Detect Distro ──────────────────────────────────────
+
+#[tauri::command]
+async fn detect_distro(host_id: String) -> Result<String, String> {
+    let storage = ssh_bridge::storage_dir();
+    let hosts_path = storage.join("hosts.json");
+    let data = std::fs::read_to_string(&hosts_path).map_err(|e| e.to_string())?;
+    let hosts: Vec<serde_json::Value> = serde_json::from_str(&data).map_err(|e| e.to_string())?;
+    let host = hosts
+        .iter()
+        .find(|h| h.get("id").and_then(|v| v.as_str()) == Some(&host_id))
+        .ok_or("Host not found")?
+        .clone();
+
+    let mut key_content: Option<String> = None;
+    if host.get("authMethod").and_then(|v| v.as_str()) == Some("key") {
+        if let Some(key_id) = host.get("keyId").and_then(|v| v.as_str()) {
+            let keys_path = storage.join("keys.json");
+            if keys_path.exists() {
+                let kdata = std::fs::read_to_string(&keys_path).map_err(|e| e.to_string())?;
+                let keys: Vec<serde_json::Value> = serde_json::from_str(&kdata).unwrap_or_default();
+                if let Some(key) = keys.iter().find(|k| k.get("id").and_then(|v| v.as_str()) == Some(key_id)) {
+                    key_content = key.get("privateKey").and_then(|v| v.as_str()).map(|s| s.to_string());
+                }
+            }
+        }
+    }
+
+    let host_json = serde_json::to_string(&host).map_err(|e| e.to_string())?;
+    let (python_bin, script) = ssh_bridge::sidecar_paths();
+
+    let mut cmd = std::process::Command::new(python_bin.to_str().unwrap_or("python3"));
+    cmd.arg("-u")
+        .arg(script.to_str().unwrap_or("sidecar/main.py"))
+        .arg("--host-json").arg(&host_json)
+        .arg("--session-id").arg("detect")
+        .arg("--detect-distro")
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .env("PYTHONUNBUFFERED", "1");
+
+    if let Some(ref kc) = key_content {
+        cmd.arg("--key-content").arg(kc);
+    }
+
+    let output = cmd.output().map_err(|e| format!("Failed to start sidecar: {}", e))?;
+    let distro_id = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    Ok(distro_id)
 }
 
 // ── Test Connection ────────────────────────────────────

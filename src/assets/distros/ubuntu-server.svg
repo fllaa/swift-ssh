@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Ubuntu Circle of Friends -->
+  <circle cx="50" cy="50" r="48" fill="#E95420"/>
+  <!-- Center dot -->
+  <circle cx="50" cy="50" r="9" fill="white"/>
+  <circle cx="50" cy="50" r="6" fill="#E95420"/>
+  <!-- Three friend circles -->
+  <circle cx="50" cy="18" r="9" fill="white"/>
+  <circle cx="50" cy="18" r="6" fill="#E95420"/>
+  <circle cx="22.3" cy="66" r="9" fill="white"/>
+  <circle cx="22.3" cy="66" r="6" fill="#E95420"/>
+  <circle cx="77.7" cy="66" r="9" fill="white"/>
+  <circle cx="77.7" cy="66" r="6" fill="#E95420"/>
+  <!-- Arcs connecting friends -->
+  <path d="M50 27 A23 23 0 0 0 30 50" stroke="white" stroke-width="4.5" fill="none"/>
+  <path d="M30 50 A23 23 0 0 0 50 73" stroke="white" stroke-width="4.5" fill="none"/>
+  <path d="M50 73 A23 23 0 0 0 70 50" stroke="white" stroke-width="4.5" fill="none"/>
+  <path d="M70 50 A23 23 0 0 0 50 27" stroke="white" stroke-width="4.5" fill="none"/>
+</svg>
