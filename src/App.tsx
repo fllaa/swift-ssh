@@ -9,6 +9,8 @@ import AddHostModal from "./components/AddHostModal";
 import AddGroupModal from "./components/AddGroupModal";
 import Dashboard from "./components/Dashboard";
 import NewActionModal from "./components/NewActionModal";
+import KeysScreen from "./components/KeysScreen";
+import AddKeyModal from "./components/AddKeyModal";
 import {
   Search,
   LayoutGrid,
@@ -39,9 +41,11 @@ export default function App() {
     dashboardViewMode,
     setDashboardViewMode,
     setGroups,
+    sidebarView,
   } = useStore();
   const [showAddHost, setShowAddHost] = useState(false);
   const [showAddGroup, setShowAddGroup] = useState(false);
+  const [showAddKey, setShowAddKey] = useState(false);
   const [showNewActionModal, setShowNewActionModal] = useState(false);
   const [editHost, setEditHost] = useState<HostProfile | null>(null);
   const [editGroup, setEditGroup] = useState<Group | null>(null);
@@ -349,7 +353,7 @@ export default function App() {
               </div>
             ))}
 
-            {activeTabId === null && (
+            {activeTabId === null && sidebarView === "hosts" && (
               <Dashboard 
                 onEditHost={(host) => {
                   setEditHost(host);
@@ -368,6 +372,10 @@ export default function App() {
                   setShowAddGroup(true);
                 }}
               />
+            )}
+            
+            {activeTabId === null && sidebarView === "keys" && (
+              <KeysScreen onAddKey={() => setShowAddKey(true)} />
             )}
           </div>
         </main>
@@ -401,10 +409,14 @@ export default function App() {
             setShowAddGroup(true);
           }}
           onAddKey={() => {
-            // Placeholder for future implementation
             setShowNewActionModal(false);
+            setShowAddKey(true);
           }}
         />
+      )}
+
+      {showAddKey && (
+        <AddKeyModal onClose={() => setShowAddKey(false)} />
       )}
     </div>
   );

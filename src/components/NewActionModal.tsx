@@ -51,7 +51,7 @@ export default function NewActionModal({
       color: "text-amber-400",
       bgColor: "bg-amber-400/10",
       onClick: onAddKey,
-      disabled: true,
+      disabled: false,
     },
   ];
 
