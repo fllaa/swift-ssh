@@ -5,18 +5,23 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useStore } from "../store/useStore";
 import { normalizeDistroId } from "../utils/distroIcon";
+import SSHErrorOverlay, { SSHErrorType } from "./SSHErrorOverlay";
 import LoadingScreen from "./LoadingScreen";
 
 interface TerminalTabProps {
   readonly tabId: string;
   readonly hostId: string;
+  readonly onEditHost: (host: any) => void;
+  readonly onClose: () => void;
 }
 
-export default function TerminalTab({ tabId, hostId }: TerminalTabProps) {
+export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: TerminalTabProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const [connecting, setConnecting] = useState(true);
+  const [sshError, setSshError] = useState<{ type: SSHErrorType; message: string } | null>(null);
+  const [reconnectKey, setReconnectKey] = useState(0);
   const setTabSessionId = useStore((s) => s.setTabSessionId);
   const { hosts, updateHost } = useStore();
 
@@ -87,9 +92,23 @@ export default function TerminalTab({ tabId, hostId }: TerminalTabProps) {
           sessionIdRef.current &&
           event.payload.sessionId === sessionIdRef.current
         ) {
-          term.write(event.payload.data);
+          const data = event.payload.data;
+          term.write(data);
 
-          if (firstData) {
+          // Check for errors or disconnection from bridge
+          if (data.includes("[Error]")) {
+            const errorMsg = data.split("[Error]")[1]?.trim() || "Unknown error";
+            let type: SSHErrorType = 'generic';
+            if (errorMsg.includes("Authentication failed")) type = 'auth';
+            else if (errorMsg.includes("private key format") || errorMsg.includes("passphrase")) type = 'key';
+
+            setSshError({ type, message: errorMsg });
+            setConnecting(false);
+          } else if (data.includes("[Connection closed]")) {
+            setSshError({ type: 'disconnected', message: 'The SSH connection was dropped unexpectedly.' });
+          }
+
+          if (firstData && !sshError) {
             firstData = false;
             const elapsed = Date.now() - startTime;
             const remaining = Math.max(0, minLoadingTime - elapsed);
@@ -105,6 +124,8 @@ export default function TerminalTab({ tabId, hostId }: TerminalTabProps) {
 
     const setupConnection = async () => {
       try {
+        setSshError(null);
+        setConnecting(true);
         const sessionId = await invoke<string>("connect_host", { hostId });
         sessionIdRef.current = sessionId;
         setTabSessionId(tabId, sessionId);
@@ -132,7 +153,13 @@ export default function TerminalTab({ tabId, hostId }: TerminalTabProps) {
       } catch (err) {
         console.error("[TerminalTab] Connection failed:", err);
         setConnecting(false);
-        term.write(`\r\n\x1b[31mConnection failed: ${err}\x1b[0m\r\n`);
+        const errMsg = String(err);
+        let type: SSHErrorType = 'generic';
+        if (errMsg.includes("timed out") || errMsg.includes("unreachable")) type = 'timeout';
+        else if (errMsg.includes("Authentication")) type = 'auth';
+        
+        setSshError({ type, message: errMsg });
+        term.write(`\r\n\x1b[31mConnection failed: ${errMsg}\x1b[0m\r\n`);
       }
     };
 
@@ -155,11 +182,31 @@ export default function TerminalTab({ tabId, hostId }: TerminalTabProps) {
         );
       }
     };
-  }, [tabId, hostId]);
+  }, [tabId, hostId, reconnectKey]);
 
   return (
     <div className="relative w-full h-full">
-      {connecting && <LoadingScreen host={host} />}
+      {connecting && <LoadingScreen host={host} onCancel={onClose} />}
+      
+      {sshError && host && (
+        <SSHErrorOverlay
+          errorType={sshError.type}
+          errorMessage={sshError.message}
+          hostName={host.name || host.hostname}
+          onReconnect={() => {
+            setSshError(null);
+            termRef.current?.clear();
+            if (sessionIdRef.current) {
+               invoke("disconnect_host", { sessionId: sessionIdRef.current }).catch(() => {});
+            }
+            // Trigger the useEffect again
+            setReconnectKey((k) => k + 1);
+          }}
+          onEditHost={() => onEditHost(host)}
+          onCloseTab={onClose}
+        />
+      )}
+
       <div
         ref={containerRef}
         className={`w-full h-full p-1 transition-opacity duration-500 ${connecting ? "opacity-0 invisible" : "opacity-100 visible"}`}

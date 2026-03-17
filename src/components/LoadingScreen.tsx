@@ -5,9 +5,10 @@ import { HostProfile } from "../store/useStore";
 interface LoadingScreenProps {
   readonly host?: HostProfile;
   readonly message?: string;
+  readonly onCancel?: () => void;
 }
 
-export default function LoadingScreen({ host, message = "Establishing secure connection..." }: LoadingScreenProps) {
+export default function LoadingScreen({ host, message = "Establishing secure connection...", onCancel }: LoadingScreenProps) {
   const osIcon = host ? getDistroIcon(host.osIcon) : null;
 
   return (
@@ -56,6 +57,17 @@ export default function LoadingScreen({ host, message = "Establishing secure con
           <p className="text-sm font-medium animate-pulse">{message}</p>
         </div>
       </div>
+
+      {onCancel && (
+        <div className="mt-8 z-40">
+          <button
+            onClick={onCancel}
+            className="px-5 py-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-sm font-medium rounded-full border border-slate-700/50 transition-colors backdrop-blur-sm"
+          >
+            Cancel Connection
+          </button>
+        </div>
+      )}
 
       {/* Connection Steps/Indicator */}
       <div className="absolute bottom-12 flex space-x-1">
