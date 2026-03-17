@@ -131,14 +131,6 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
         setTabSessionId(tabId, sessionId);
         term.clear();
 
-        // Fallback: Show terminal after 5s even if no data arrived
-        setTimeout(() => {
-          if (firstData) {
-            setConnecting(false);
-            requestAnimationFrame(() => fit.fit());
-          }
-        }, 5000);
-
         // Auto-detect distro in background
         const rawId = await invoke<string>("detect_distro", { hostId });
         if (rawId) {
@@ -192,7 +184,7 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
         <SSHErrorOverlay
           errorType={sshError.type}
           errorMessage={sshError.message}
-          hostName={host.name || host.hostname}
+          hostName={host.label || host.hostname}
           onReconnect={() => {
             setSshError(null);
             termRef.current?.clear();
