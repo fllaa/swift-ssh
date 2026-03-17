@@ -67,7 +67,7 @@ export default function App() {
       try {
         setIsFullscreen(await appWindow.isFullscreen());
       } catch (e) {
-        // Fallback for non-Tauri contexts if any
+        console.error("Failed to check fullscreen status:", e);
       }
     };
 
@@ -110,31 +110,41 @@ export default function App() {
     <div className="flex flex-col h-screen w-screen bg-space-dark text-slate-100 font-sans overflow-hidden">
       {/* True Application Title Bar (Overlay) */}
       <div
-        data-tauri-drag-region
-        className={`h-10 flex items-end pr-4 bg-[#202638] shrink-0 border-b border-slate-800 transition-all duration-300 ${isFullscreen ? "pl-4" : "pl-[84px]"}`}
+        className={`h-10 relative flex items-end pr-4 bg-[#202638] shrink-0 border-b border-slate-800 transition-all duration-300 ${isFullscreen ? "pl-4" : "pl-[84px]"}`}
       >
+        {/* Dedicated Drag Region Background */}
+        <div 
+          data-tauri-drag-region
+          className="absolute inset-0 z-0" 
+          onDoubleClick={() => getCurrentWindow().toggleMaximize()}
+        />
+
         {/* Vault Tab Design */}
         <div 
-          className={`flex items-end shrink-0 h-full relative group ${activeTabId === null ? 'tab-curve-active z-20' : 'z-10'}`}
-          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+          data-tauri-drag-region
+          className={`flex items-end shrink-0 h-full relative group z-10 ${activeTabId === null ? 'tab-curve-active' : ''}`}
         >
           <div className={`flex items-center -space-x-px transition-all ${activeTabId === null ? 'h-full px-2' : 'h-8 mb-0.5 px-1'}`}>
             <button 
               onClick={() => setActiveTab(null)}
               className={`flex items-center gap-2 px-3 h-full cursor-pointer transition-colors text-sm font-medium ${activeTabId === null ? 'text-white' : 'text-slate-400 hover:text-slate-200'}`}
+              style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
             >
               <Cloud className={`w-4 h-4 transition-colors ${activeTabId === null ? 'text-blue-400' : 'text-slate-500'}`} />
               <span className="truncate">{activeVault?.name || "Main Vault"}</span>
             </button>
-            <button className={`flex items-center justify-center px-1.5 h-full cursor-pointer transition-colors ${activeTabId === null ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-300'}`}>
+            <button 
+              className={`flex items-center justify-center px-1.5 h-full cursor-pointer transition-colors ${activeTabId === null ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-300'}`}
+              style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+            >
               <ChevronDown className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
         {/* Tabs inside Title bar */}
-        <div className="flex-1 flex justify-start h-full relative" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-          <div className="flex items-end space-x-1 px-4 overflow-x-auto no-scrollbar h-full">
+        <div data-tauri-drag-region className="flex-1 flex justify-start h-full relative z-10">
+          <div data-tauri-drag-region className="flex items-end space-x-1 px-4 overflow-x-auto no-scrollbar h-full">
             {tabs.map((tab) => {
               const isActive = tab.tabId === activeTabId;
               let statusColor = "text-slate-500";
@@ -159,6 +169,7 @@ export default function App() {
                       ? "tab-curve-active text-white"
                       : "text-slate-400 hover:text-slate-200 h-8 mb-0.5"
                   }`}
+                  style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
                 >
                   <Server className={`w-3.5 h-3.5 ${statusColor}`} />
                   {renamingTabId === tab.tabId ? (
@@ -202,7 +213,10 @@ export default function App() {
               );
             })}
             {tabs.length > 0 && (
-              <button className="flex items-center justify-center p-1.5 text-slate-500 hover:text-white mb-1.5 ml-1 hover:bg-slate-800 rounded-md transition-colors">
+              <button 
+                className="flex items-center justify-center p-1.5 text-slate-500 hover:text-white mb-1.5 ml-1 hover:bg-slate-800 rounded-md transition-colors"
+                style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+              >
                 <Plus className="w-4 h-4" />
               </button>
             )}
