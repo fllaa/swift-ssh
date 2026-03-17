@@ -1,22 +1,26 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useStore } from "../store/useStore";
 import { normalizeDistroId } from "../utils/distroIcon";
+import LoadingScreen from "./LoadingScreen";
 
 interface TerminalTabProps {
-  tabId: string;
-  hostId: string;
+  readonly tabId: string;
+  readonly hostId: string;
 }
 
 export default function TerminalTab({ tabId, hostId }: TerminalTabProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  const [connecting, setConnecting] = useState(true);
   const setTabSessionId = useStore((s) => s.setTabSessionId);
   const { hosts, updateHost } = useStore();
+
+  const host = hosts.find(h => h.id === hostId);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -71,7 +75,9 @@ export default function TerminalTab({ tabId, hostId }: TerminalTabProps) {
       }
     });
 
-    term.write("Connecting...\r\n");
+    const startTime = Date.now();
+    const minLoadingTime = 1500;
+    let firstData = true;
 
     // Register listener for SSH output
     const unlistenPromise = listen<{ sessionId: string; data: string }>(
@@ -82,38 +88,55 @@ export default function TerminalTab({ tabId, hostId }: TerminalTabProps) {
           event.payload.sessionId === sessionIdRef.current
         ) {
           term.write(event.payload.data);
+
+          if (firstData) {
+            firstData = false;
+            const elapsed = Date.now() - startTime;
+            const remaining = Math.max(0, minLoadingTime - elapsed);
+            setTimeout(() => {
+              setConnecting(false);
+              // Trigger a fit once visible
+              requestAnimationFrame(() => fit.fit());
+            }, remaining);
+          }
         }
       },
     );
 
-    // Initiate connection immediately — don't wait for listen() to resolve.
-    // The SSH handshake takes 1-2 seconds, so the listener will be registered
-    // long before any data arrives from the sidecar.
-
-    invoke<string>("connect_host", { hostId })
-      .then((sessionId) => {
+    const setupConnection = async () => {
+      try {
+        const sessionId = await invoke<string>("connect_host", { hostId });
         sessionIdRef.current = sessionId;
         setTabSessionId(tabId, sessionId);
         term.clear();
 
-        // Auto-detect distro in background and persist the icon
-        invoke<string>("detect_distro", { hostId })
-          .then((rawId) => {
-            if (!rawId) return;
-            const iconKey = normalizeDistroId(rawId);
-            const host = hosts.find((h) => h.id === hostId);
-            if (host && host.osIcon !== iconKey) {
-              const updated = { ...host, osIcon: iconKey };
-              updateHost(updated);
-              invoke("save_host", { profile: updated }).catch(console.error);
-            }
-          })
-          .catch(() => {/* detection failure is non-fatal */});
-      })
-      .catch((err) => {
-        console.error("[TerminalTab] connect failed:", err);
+        // Fallback: Show terminal after 5s even if no data arrived
+        setTimeout(() => {
+          if (firstData) {
+            setConnecting(false);
+            requestAnimationFrame(() => fit.fit());
+          }
+        }, 5000);
+
+        // Auto-detect distro in background
+        const rawId = await invoke<string>("detect_distro", { hostId });
+        if (rawId) {
+          const iconKey = normalizeDistroId(rawId);
+          const currentHost = hosts.find((h) => h.id === hostId);
+          if (currentHost && currentHost.osIcon !== iconKey) {
+            const updated = { ...currentHost, osIcon: iconKey };
+            updateHost(updated);
+            await invoke("save_host", { profile: updated });
+          }
+        }
+      } catch (err) {
+        console.error("[TerminalTab] Connection failed:", err);
+        setConnecting(false);
         term.write(`\r\n\x1b[31mConnection failed: ${err}\x1b[0m\r\n`);
-      });
+      }
+    };
+
+    setupConnection();
 
     // Handle resize
     const handleResize = () => fit.fit();
@@ -135,10 +158,13 @@ export default function TerminalTab({ tabId, hostId }: TerminalTabProps) {
   }, [tabId, hostId]);
 
   return (
-    <div
-      ref={containerRef}
-      className="w-full h-full p-1"
-      style={{ backgroundColor: "#0f1117" }}
-    />
+    <div className="relative w-full h-full">
+      {connecting && <LoadingScreen host={host} />}
+      <div
+        ref={containerRef}
+        className={`w-full h-full p-1 transition-opacity duration-500 ${connecting ? "opacity-0 invisible" : "opacity-100 visible"}`}
+        style={{ backgroundColor: "#0f1117" }}
+      />
+    </div>
   );
 }
