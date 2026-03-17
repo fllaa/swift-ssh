@@ -21,6 +21,9 @@ pub fn run() {
             list_keys,
             save_key,
             delete_key,
+            list_groups,
+            save_group,
+            delete_group,
             connect_host,
             disconnect_host,
             send_input,
@@ -137,6 +140,60 @@ async fn delete_key(key_id: String) -> Result<(), String> {
     let mut keys: Vec<serde_json::Value> = serde_json::from_str(&data).unwrap_or_default();
     keys.retain(|k| k.get("id").and_then(|v| v.as_str()) != Some(&key_id));
     let data = serde_json::to_string_pretty(&keys).map_err(|e| e.to_string())?;
+    std::fs::write(&path, data).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// ── Group CRUD ─────────────────────────────────────────
+
+#[tauri::command]
+async fn list_groups() -> Result<Vec<serde_json::Value>, String> {
+    let storage = ssh_bridge::storage_dir();
+    let path = storage.join("groups.json");
+    if !path.exists() {
+        return Ok(vec![]);
+    }
+    let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let groups: Vec<serde_json::Value> = serde_json::from_str(&data).map_err(|e| e.to_string())?;
+    Ok(groups)
+}
+
+#[tauri::command]
+async fn save_group(group: serde_json::Value) -> Result<(), String> {
+    let storage = ssh_bridge::storage_dir();
+    std::fs::create_dir_all(&storage).map_err(|e| e.to_string())?;
+    let path = storage.join("groups.json");
+
+    let mut groups: Vec<serde_json::Value> = if path.exists() {
+        let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&data).unwrap_or_default()
+    } else {
+        vec![]
+    };
+
+    let id = group.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    if let Some(pos) = groups.iter().position(|g| g.get("id").and_then(|v| v.as_str()) == Some(&id)) {
+        groups[pos] = group;
+    } else {
+        groups.push(group);
+    }
+
+    let data = serde_json::to_string_pretty(&groups).map_err(|e| e.to_string())?;
+    std::fs::write(&path, data).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn delete_group(group_id: String) -> Result<(), String> {
+    let storage = ssh_bridge::storage_dir();
+    let path = storage.join("groups.json");
+    if !path.exists() {
+        return Ok(());
+    }
+    let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let mut groups: Vec<serde_json::Value> = serde_json::from_str(&data).unwrap_or_default();
+    groups.retain(|g| g.get("id").and_then(|v| v.as_str()) != Some(&group_id));
+    let data = serde_json::to_string_pretty(&groups).map_err(|e| e.to_string())?;
     std::fs::write(&path, data).map_err(|e| e.to_string())?;
     Ok(())
 }

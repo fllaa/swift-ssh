@@ -2,6 +2,7 @@ import { useState } from "react";
 import { X, FolderPlus, Folder, Cloud, Database, Server, Code } from "lucide-react";
 import { useStore, Group } from "../store/useStore";
 import { v4 as uuidv4 } from "uuid";
+import { invoke } from "@tauri-apps/api/core";
 
 interface AddGroupModalProps {
   readonly group?: Group;
@@ -33,16 +34,18 @@ export default function AddGroupModal({ group, onClose }: AddGroupModalProps) {
     { id: "slate", class: "bg-slate-500", ring: "ring-slate-500" },
   ];
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) return;
     
     if (isEdit && group) {
-      updateGroup({
+      const updatedGroup = {
         ...group,
         name: name.trim(),
         icon: selectedIcon,
         color: selectedColor,
-      });
+      };
+      updateGroup(updatedGroup);
+      await invoke("save_group", { group: updatedGroup }).catch(console.error);
     } else {
       const newGroup: Group = {
         id: uuidv4(),
@@ -52,6 +55,7 @@ export default function AddGroupModal({ group, onClose }: AddGroupModalProps) {
         color: selectedColor,
       };
       addGroup(newGroup);
+      await invoke("save_group", { group: newGroup }).catch(console.error);
     }
     
     onClose();

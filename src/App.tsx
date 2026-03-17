@@ -37,6 +37,7 @@ export default function App() {
     activeVaultId,
     dashboardViewMode,
     setDashboardViewMode,
+    setGroups,
   } = useStore();
   const [showAddHost, setShowAddHost] = useState(false);
   const [showAddGroup, setShowAddGroup] = useState(false);
@@ -79,10 +80,11 @@ export default function App() {
     return () => globalThis.removeEventListener("click", handleClick);
   }, []);
 
-  // Load hosts and keys on mount
+  // Load hosts, keys, and groups on mount
   useEffect(() => {
     invoke<HostProfile[]>("list_hosts").then(setHosts).catch(console.error);
     invoke<SSHKey[]>("list_keys").then(setKeys).catch(console.error);
+    invoke<Group[]>("list_groups").then(setGroups).catch(console.error);
   }, []);
 
   // Listen for SSH disconnect events

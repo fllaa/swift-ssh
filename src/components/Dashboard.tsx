@@ -53,7 +53,7 @@ export default function Dashboard({ onEditHost, onAddHost, onAddGroup, onEditGro
   const handleDelete = async (host: HostProfile) => {
     if (!confirm(`Delete host "${host.label || host.hostname}"?`)) return;
     try {
-      await invoke("delete_host", { hostId: host.id });
+      await invoke("delete_host", { host_id: host.id });
       removeHost(host.id);
     } catch (err) {
       console.error("Delete failed:", err);
@@ -73,6 +73,7 @@ export default function Dashboard({ onEditHost, onAddHost, onAddGroup, onEditGro
     });
 
     removeGroup(group.id);
+    invoke("delete_group", { group_id: group.id }).catch(console.error);
   };
 
   const currentGroups = groups.filter(g => g.vaultId === activeVaultId);
