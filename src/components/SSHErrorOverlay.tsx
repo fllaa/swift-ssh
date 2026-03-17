@@ -54,7 +54,7 @@ export default function SSHErrorOverlay({
           </div>
 
           <div className="bg-[#151822] border border-red-500/20 rounded-lg p-3 w-full text-left">
-            <p className="text-xs text-red-300/80 font-mono break-words">
+            <p className="text-xs text-red-300/80 font-mono wrap-break-word">
               {description}
             </p>
           </div>

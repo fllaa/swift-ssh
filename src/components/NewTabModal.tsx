@@ -37,8 +37,8 @@ export default function NewTabModal({ onClose, onConnect }: NewTabModalProps) {
         onClose();
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    globalThis.addEventListener("keydown", handleKeyDown);
+    return () => globalThis.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
   // Focus input on mount
@@ -65,7 +65,7 @@ export default function NewTabModal({ onClose, onConnect }: NewTabModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-100 p-4 animate-in fade-in duration-200">
       <div
         className="bg-card-slate border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}

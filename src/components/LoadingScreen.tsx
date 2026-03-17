@@ -15,7 +15,7 @@ export default function LoadingScreen({ host, message = "Establishing secure con
     <div className="flex flex-col items-center justify-center w-full h-full bg-[#0f1117] text-slate-300 animate-in fade-in duration-500">
       <div className="relative mb-12">
         {/* Pulsing Aura Background */}
-        <div className="absolute inset-0 bg-blue-600/20 blur-[60px] rounded-full scale-150 animate-pulse duration-[3000ms]" />
+        <div className="absolute inset-0 bg-blue-600/20 blur-[60px] rounded-full scale-150 animate-pulse duration-3000" />
         
         {/* Main Icon Container */}
         <div className="relative flex items-center justify-center size-24 bg-slate-900 border border-slate-800 rounded-3xl shadow-[0_0_50px_-12px_rgba(59,130,246,0.3)] overflow-visible">

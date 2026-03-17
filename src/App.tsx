@@ -100,8 +100,8 @@ export default function App() {
         setShowNewTabModal(true);
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    globalThis.addEventListener("keydown", handleKeyDown);
+    return () => globalThis.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   // Load hosts, keys, and groups after vault unlock
@@ -133,7 +133,7 @@ export default function App() {
     <div className="flex flex-col h-screen w-screen bg-space-dark text-slate-100 font-sans overflow-hidden">
       {/* True Application Title Bar (Overlay) */}
       <div
-        className={`h-10 relative flex items-end pr-4 bg-[#202638] shrink-0 border-b border-slate-800 transition-all duration-300 ${isFullscreen ? "pl-4" : "pl-[84px]"}`}
+        className={`h-10 relative flex items-end pr-4 bg-[#202638] shrink-0 border-b border-slate-800 transition-all duration-300 ${isFullscreen ? "pl-4" : "pl-21"}`}
       >
         {/* Dedicated Drag Region Background */}
         <div
