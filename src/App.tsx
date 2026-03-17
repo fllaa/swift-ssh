@@ -363,7 +363,21 @@ export default function App() {
                   tab.tabId === activeTabId ? "block" : "hidden"
                 }`}
               >
-                <TerminalTab tabId={tab.tabId} hostId={tab.hostId} />
+                <TerminalTab 
+                  tabId={tab.tabId} 
+                  hostId={tab.hostId}
+                  onEditHost={(host) => {
+                    setEditHost(host);
+                    setShowAddHost(true);
+                  }}
+                  onClose={() => {
+                    const t = tabs.find(x => x.tabId === tab.tabId);
+                    if (t?.sessionId) {
+                      invoke("disconnect_host", { sessionId: t.sessionId }).catch(() => {});
+                    }
+                    removeTab(tab.tabId);
+                  }}
+                />
               </div>
             ))}
 
