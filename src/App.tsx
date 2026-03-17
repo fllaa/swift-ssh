@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useStore, HostProfile, SSHKey } from "./store/useStore";
+import { useStore, HostProfile, SSHKey, Group } from "./store/useStore";
 import Sidebar from "./components/Sidebar";
 import TerminalTab from "./components/TerminalTab";
 import AddHostModal from "./components/AddHostModal";
+import AddGroupModal from "./components/AddGroupModal";
 import Dashboard from "./components/Dashboard";
 import {
   Search,
@@ -38,7 +39,9 @@ export default function App() {
     setDashboardViewMode,
   } = useStore();
   const [showAddHost, setShowAddHost] = useState(false);
+  const [showAddGroup, setShowAddGroup] = useState(false);
   const [editHost, setEditHost] = useState<HostProfile | null>(null);
+  const [editGroup, setEditGroup] = useState<Group | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [tabContextMenu, setTabContextMenu] = useState<{
     x: number;
@@ -355,6 +358,14 @@ export default function App() {
                   setEditHost(null);
                   setShowAddHost(true);
                 }}
+                onAddGroup={() => {
+                  setEditGroup(null);
+                  setShowAddGroup(true);
+                }}
+                onEditGroup={(group) => {
+                  setEditGroup(group);
+                  setShowAddGroup(true);
+                }}
               />
             )}
           </div>
@@ -363,6 +374,16 @@ export default function App() {
 
       {showAddHost && (
         <AddHostModal host={editHost} onClose={() => setShowAddHost(false)} />
+      )}
+
+      {showAddGroup && (
+        <AddGroupModal 
+          group={editGroup || undefined} 
+          onClose={() => {
+            setShowAddGroup(false);
+            setEditGroup(null);
+          }} 
+        />
       )}
     </div>
   );

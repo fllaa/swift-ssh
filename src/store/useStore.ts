@@ -18,6 +18,8 @@ export interface Group {
   id: string;
   name: string;
   vaultId: string;
+  icon?: string;
+  color?: string;
 }
 
 export interface Vault {
@@ -62,6 +64,7 @@ interface AppState {
 
   setGroups: (groups: Group[]) => void;
   addGroup: (group: Group) => void;
+  updateGroup: (group: Group) => void;
   removeGroup: (id: string) => void;
 
   setVaults: (vaults: Vault[]) => void;
@@ -82,11 +85,7 @@ interface AppState {
 export const useStore = create<AppState>((set) => ({
   hosts: [],
   keys: [],
-  groups: [
-    { id: "g1", name: "AWS Production", vaultId: "v1" },
-    { id: "g2", name: "Staging", vaultId: "v1" },
-    { id: "g3", name: "Development", vaultId: "v1" },
-  ],
+  groups: [],
   vaults: [{ id: "v1", name: "Main Vault" }],
   activeVaultId: "v1",
   tabs: [],
@@ -106,6 +105,10 @@ export const useStore = create<AppState>((set) => ({
 
   setGroups: (groups) => set({ groups }),
   addGroup: (group) => set((s) => ({ groups: [...s.groups, group] })),
+  updateGroup: (group) =>
+    set((s) => ({
+      groups: s.groups.map((g) => (g.id === group.id ? group : g)),
+    })),
   removeGroup: (id) => set((s) => ({ groups: s.groups.filter((g) => g.id !== id) })),
 
   setVaults: (vaults) => set({ vaults }),
