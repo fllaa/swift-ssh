@@ -115,29 +115,35 @@ export default function App() {
         className={`h-10 relative flex items-end pr-4 bg-[#202638] shrink-0 border-b border-slate-800 transition-all duration-300 ${isFullscreen ? "pl-4" : "pl-[84px]"}`}
       >
         {/* Dedicated Drag Region Background */}
-        <div 
+        <div
           data-tauri-drag-region
-          className="absolute inset-0 z-0" 
+          className="absolute inset-0 z-0"
           onDoubleClick={() => getCurrentWindow().toggleMaximize()}
         />
 
         {/* Vault Tab Design */}
-        <div 
+        <div
           data-tauri-drag-region
-          className={`flex items-end shrink-0 h-full relative group z-10 ${activeTabId === null ? 'tab-curve-active' : ''}`}
+          className={`flex items-end shrink-0 h-full relative group z-10 ${activeTabId === null ? "tab-curve-active" : ""}`}
         >
-          <div className={`flex items-center -space-x-px transition-all ${activeTabId === null ? 'h-full px-2' : 'h-8 mb-0.5 px-1'}`}>
-            <button 
+          <div
+            className={`flex items-center -space-x-px transition-all ${activeTabId === null ? "h-full px-2" : "h-8 mb-0.5 px-1"}`}
+          >
+            <button
               onClick={() => setActiveTab(null)}
-              className={`flex items-center gap-2 px-3 h-full cursor-pointer transition-colors text-sm font-medium ${activeTabId === null ? 'text-white' : 'text-slate-400 hover:text-slate-200'}`}
-              style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+              className={`flex items-center gap-2 px-3 h-full cursor-pointer transition-colors text-sm font-medium ${activeTabId === null ? "text-white" : "text-slate-400 hover:text-slate-200"}`}
+              style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
             >
-              <Cloud className={`w-4 h-4 transition-colors ${activeTabId === null ? 'text-blue-400' : 'text-slate-500'}`} />
-              <span className="truncate">{activeVault?.name || "Main Vault"}</span>
+              <Cloud
+                className={`w-4 h-4 transition-colors ${activeTabId === null ? "text-blue-400" : "text-slate-500"}`}
+              />
+              <span className="truncate">
+                {activeVault?.name || "Main Vault"}
+              </span>
             </button>
-            <button 
-              className={`flex items-center justify-center px-1.5 h-full cursor-pointer transition-colors ${activeTabId === null ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-300'}`}
-              style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+            <button
+              className={`flex items-center justify-center px-1.5 h-full cursor-pointer transition-colors ${activeTabId === null ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-300"}`}
+              style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
             >
               <ChevronDown className="w-3.5 h-3.5" />
             </button>
@@ -145,13 +151,21 @@ export default function App() {
         </div>
 
         {/* Tabs inside Title bar */}
-        <div data-tauri-drag-region className="flex-1 flex justify-start h-full relative z-10">
-          <div data-tauri-drag-region className="flex items-end space-x-1 px-4 overflow-x-auto no-scrollbar h-full">
+        <div
+          data-tauri-drag-region
+          className="flex-1 flex justify-start h-full relative z-10"
+        >
+          <div
+            data-tauri-drag-region
+            className="flex items-end space-x-1 px-4 overflow-x-auto no-scrollbar h-full"
+          >
             {tabs.map((tab) => {
               const isActive = tab.tabId === activeTabId;
               let statusColor = "text-slate-500";
               if (isActive) {
-                statusColor = tab.connected ? "text-green-500" : "text-orange-400";
+                statusColor = tab.connected
+                  ? "text-green-500"
+                  : "text-orange-400";
               }
 
               return (
@@ -171,7 +185,7 @@ export default function App() {
                       ? "tab-curve-active text-white"
                       : "text-slate-400 hover:text-slate-200 h-8 mb-0.5"
                   }`}
-                  style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                  style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
                 >
                   {tab.type === "sftp" ? (
                     <FolderOpen className={`w-3.5 h-3.5 ${statusColor}`} />
@@ -207,12 +221,17 @@ export default function App() {
                     onClick={(e) => {
                       e.stopPropagation();
                       if (tab.sessionId) {
-                        const cmd = tab.type === "sftp" ? "disconnect_sftp" : "disconnect_host";
-                        invoke(cmd, { sessionId: tab.sessionId }).catch(() => {});
+                        const cmd =
+                          tab.type === "sftp"
+                            ? "disconnect_sftp"
+                            : "disconnect_host";
+                        invoke(cmd, { sessionId: tab.sessionId }).catch(
+                          () => {},
+                        );
                       }
                       removeTab(tab.tabId);
                     }}
-                    className={`ml-1 transition-opacity duration-200 ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} text-slate-500 hover:text-white`}
+                    className={`ml-1 transition-opacity duration-200 ${isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"} text-slate-500 hover:text-white`}
                   >
                     ×
                   </button>
@@ -220,9 +239,9 @@ export default function App() {
               );
             })}
             {tabs.length > 0 && (
-              <button 
+              <button
                 className="flex items-center justify-center p-1.5 text-slate-500 hover:text-white mb-1.5 ml-1 hover:bg-slate-800 rounded-md transition-colors"
-                style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+                style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -240,19 +259,26 @@ export default function App() {
             <button
               className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-blue-600/20 hover:text-blue-400 flex items-center gap-3 transition-colors"
               onClick={() => {
-                const sourceTab = tabs.find((t) => t.tabId === tabContextMenu.tabId);
+                const sourceTab = tabs.find(
+                  (t) => t.tabId === tabContextMenu.tabId,
+                );
                 if (sourceTab) {
                   // Get the base label (remove existing (n) if present)
                   const labelRegex = /^(.*?) \((\d+)\)$/;
                   const match = labelRegex.exec(sourceTab.label);
                   const baseLabel = match ? match[1] : sourceTab.label;
-                  
+
                   // Find the highest n for this baseLabel
                   let maxN = 0;
-                  const escapedBase = baseLabel.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
-                  const tabRegex = new RegExp(String.raw`^${escapedBase} \((\d+)\)$`);
+                  const escapedBase = baseLabel.replaceAll(
+                    /[.*+?^${}()|[\]\\]/g,
+                    String.raw`\$&`,
+                  );
+                  const tabRegex = new RegExp(
+                    String.raw`^${escapedBase} \((\d+)\)$`,
+                  );
 
-                  tabs.forEach(t => {
+                  tabs.forEach((t) => {
                     const tMatch = tabRegex.exec(t.label);
                     if (tMatch) {
                       const n = Number.parseInt(tMatch[1], 10);
@@ -291,7 +317,10 @@ export default function App() {
                 const tab = tabs.find((t) => t.tabId === tabContextMenu.tabId);
                 if (tab) {
                   if (tab.sessionId) {
-                    const cmd = tab.type === "sftp" ? "disconnect_sftp" : "disconnect_host";
+                    const cmd =
+                      tab.type === "sftp"
+                        ? "disconnect_sftp"
+                        : "disconnect_host";
                     invoke(cmd, { sessionId: tab.sessionId }).catch(() => {});
                   }
                   removeTab(tab.tabId);
@@ -338,13 +367,13 @@ export default function App() {
               </div>
               <div className="flex items-center space-x-4">
                 <div className="flex items-center bg-slate-900 rounded-lg p-1 border border-slate-800">
-                  <button 
+                  <button
                     onClick={() => setDashboardViewMode("grid")}
                     className={`p-1.5 rounded transition-all ${dashboardViewMode === "grid" ? "bg-slate-800 text-white" : "text-slate-500 hover:text-slate-300"}`}
                   >
                     <LayoutGrid className="w-4 h-4" />
                   </button>
-                  <button 
+                  <button
                     onClick={() => setDashboardViewMode("list")}
                     className={`p-1.5 rounded transition-all ${dashboardViewMode === "list" ? "bg-slate-800 text-white" : "text-slate-500 hover:text-slate-300"}`}
                   >
@@ -374,13 +403,29 @@ export default function App() {
                 {tab.type === "sftp" ? (
                   <SftpTab tabId={tab.tabId} hostId={tab.hostId} />
                 ) : (
-                  <TerminalTab tabId={tab.tabId} hostId={tab.hostId} />
+                  <TerminalTab
+                    tabId={tab.tabId}
+                    hostId={tab.hostId}
+                    onEditHost={(host) => {
+                      setEditHost(host);
+                      setShowAddHost(true);
+                    }}
+                    onClose={() => {
+                      const t = tabs.find((x) => x.tabId === tab.tabId);
+                      if (t?.sessionId) {
+                        invoke("disconnect_host", {
+                          sessionId: t.sessionId,
+                        }).catch(() => {});
+                      }
+                      removeTab(tab.tabId);
+                    }}
+                  />
                 )}
               </div>
             ))}
 
             {activeTabId === null && sidebarView === "hosts" && (
-              <Dashboard 
+              <Dashboard
                 onEditHost={(host) => {
                   setEditHost(host);
                   setShowAddHost(true);
@@ -399,7 +444,7 @@ export default function App() {
                 }}
               />
             )}
-            
+
             {activeTabId === null && sidebarView === "keys" && (
               <KeysScreen onAddKey={() => setShowAddKey(true)} />
             )}
@@ -412,17 +457,17 @@ export default function App() {
       )}
 
       {showAddGroup && (
-        <AddGroupModal 
-          group={editGroup || undefined} 
+        <AddGroupModal
+          group={editGroup || undefined}
           onClose={() => {
             setShowAddGroup(false);
             setEditGroup(null);
-          }} 
+          }}
         />
       )}
 
       {showNewActionModal && (
-        <NewActionModal 
+        <NewActionModal
           onClose={() => setShowNewActionModal(false)}
           onAddHost={() => {
             setShowNewActionModal(false);
@@ -441,9 +486,7 @@ export default function App() {
         />
       )}
 
-      {showAddKey && (
-        <AddKeyModal onClose={() => setShowAddKey(false)} />
-      )}
+      {showAddKey && <AddKeyModal onClose={() => setShowAddKey(false)} />}
     </div>
   );
 }
