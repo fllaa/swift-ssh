@@ -23,15 +23,15 @@ A lightweight, cross-platform desktop SSH client built as an MVP alternative to 
 
 ## Tech Stack
 
-| Layer | Technology |
-| :--- | :--- |
-| Desktop framework | [Tauri v2](https://v2.tauri.app) (Rust) |
-| Frontend | [React 19](https://react.dev) + TypeScript + [Vite 6](https://vite.dev) |
-| Styling | [Tailwind CSS v4](https://tailwindcss.com) |
-| State management | [Zustand](https://zustand.docs.pmnd.rs) |
-| Terminal emulator | [xterm.js](https://xtermjs.org) |
-| SSH backend | Python 3 sidecar using [Paramiko](https://www.paramiko.org) |
-| Storage | Plain JSON files (`hosts.json`, `keys.json`) |
+| Layer             | Technology                                                              |
+| :---------------- | :---------------------------------------------------------------------- |
+| Desktop framework | [Tauri v2](https://v2.tauri.app) (Rust)                                 |
+| Frontend          | [React 19](https://react.dev) + TypeScript + [Vite 6](https://vite.dev) |
+| Styling           | [Tailwind CSS v4](https://tailwindcss.com)                              |
+| State management  | [Zustand](https://zustand.docs.pmnd.rs)                                 |
+| Terminal emulator | [xterm.js](https://xtermjs.org)                                         |
+| SSH backend       | Python 3 sidecar using [Paramiko](https://www.paramiko.org)             |
+| Storage           | Plain JSON files (`hosts.json`, `keys.json`)                            |
 
 ---
 
@@ -39,11 +39,11 @@ A lightweight, cross-platform desktop SSH client built as an MVP alternative to 
 
 Make sure these are installed before getting started:
 
-| Tool | Minimum version | Install |
-| :--- | :--- | :--- |
-| **Node.js** | 18+ | [nodejs.org](https://nodejs.org) |
-| **Rust** | 1.70+ | [rustup.rs](https://rustup.rs) |
-| **Python** | 3.10+ | [python.org](https://www.python.org) |
+| Tool        | Minimum version | Install                              |
+| :---------- | :-------------- | :----------------------------------- |
+| **Node.js** | 18+             | [nodejs.org](https://nodejs.org)     |
+| **Rust**    | 1.70+           | [rustup.rs](https://rustup.rs)       |
+| **Python**  | 3.10+           | [python.org](https://www.python.org) |
 
 ### macOS-specific
 
@@ -91,6 +91,7 @@ npm run tauri dev
 ```
 
 This will:
+
 1. Start the Vite dev server on `http://localhost:1420`
 2. Compile the Rust backend
 3. Launch the native SwiftSSH window with hot-reload enabled
@@ -185,24 +186,24 @@ SwiftSSH/
 
 ### IPC Commands
 
-| Command | Direction | Description |
-| :--- | :--- | :--- |
-| `list_hosts()` | React → Rust | Returns all saved host profiles |
-| `save_host(profile)` | React → Rust | Creates or updates a host profile |
-| `delete_host(host_id)` | React → Rust | Deletes a host profile |
-| `list_keys()` | React → Rust | Returns all saved SSH keys |
-| `save_key(name, private_key_content)` | React → Rust | Saves a new SSH key, returns key object with fingerprint |
-| `delete_key(key_id)` | React → Rust | Deletes an SSH key |
-| `connect_host(host_id)` | React → Rust → Python | Opens an SSH session, returns `session_id` |
-| `disconnect_host(session_id)` | React → Rust | Kills the sidecar process for that session |
-| `send_input(session_id, data)` | React → Rust → Python | Sends terminal keystrokes to the SSH channel |
+| Command                               | Direction             | Description                                              |
+| :------------------------------------ | :-------------------- | :------------------------------------------------------- |
+| `list_hosts()`                        | React → Rust          | Returns all saved host profiles                          |
+| `save_host(profile)`                  | React → Rust          | Creates or updates a host profile                        |
+| `delete_host(host_id)`                | React → Rust          | Deletes a host profile                                   |
+| `list_keys()`                         | React → Rust          | Returns all saved SSH keys                               |
+| `save_key(name, private_key_content)` | React → Rust          | Saves a new SSH key, returns key object with fingerprint |
+| `delete_key(key_id)`                  | React → Rust          | Deletes an SSH key                                       |
+| `connect_host(host_id)`               | React → Rust → Python | Opens an SSH session, returns `session_id`               |
+| `disconnect_host(session_id)`         | React → Rust          | Kills the sidecar process for that session               |
+| `send_input(session_id, data)`        | React → Rust → Python | Sends terminal keystrokes to the SSH channel             |
 
 ### Events
 
-| Event | Direction | Payload |
-| :--- | :--- | :--- |
-| `ssh-output` | Rust → React | `{ sessionId: string, data: string }` — terminal output |
-| `ssh-disconnected` | Rust → React | `{ sessionId: string }` — session ended |
+| Event              | Direction    | Payload                                                 |
+| :----------------- | :----------- | :------------------------------------------------------ |
+| `ssh-output`       | Rust → React | `{ sessionId: string, data: string }` — terminal output |
+| `ssh-disconnected` | Rust → React | `{ sessionId: string }` — session ended                 |
 
 ---
 
@@ -210,13 +211,14 @@ SwiftSSH/
 
 All data is stored as plain JSON in your OS local data directory:
 
-| OS | Path |
-| :--- | :--- |
-| macOS | `~/Library/Application Support/SwiftSSH/` |
-| Linux | `~/.local/share/SwiftSSH/` |
+| OS      | Path                                      |
+| :------ | :---------------------------------------- |
+| macOS   | `~/Library/Application Support/SwiftSSH/` |
+| Linux   | `~/.local/share/SwiftSSH/`                |
 | Windows | `C:\Users\<user>\AppData\Local\SwiftSSH\` |
 
 **Files:**
+
 - `hosts.json` — Array of host profile objects
 - `keys.json` — Array of SSH key objects (includes private key content)
 
@@ -248,16 +250,16 @@ All data is stored as plain JSON in your OS local data directory:
 
 ### Color Palette
 
-| Element | Color |
-| :--- | :--- |
-| Background | `#0f1117` |
-| Sidebar | `#1e2130` |
-| Borders | `#2a2d3e` |
-| Primary text | `#e0e0e0` |
-| Secondary text | `#9ca3af` |
-| Accent (blue) | `#61afef` / `#528bff` |
-| Connected indicator | `#22c55e` (green) |
-| Disconnected indicator | `#ef4444` (red) |
+| Element                | Color                 |
+| :--------------------- | :-------------------- |
+| Background             | `#0f1117`             |
+| Sidebar                | `#1e2130`             |
+| Borders                | `#2a2d3e`             |
+| Primary text           | `#e0e0e0`             |
+| Secondary text         | `#9ca3af`             |
+| Accent (blue)          | `#61afef` / `#528bff` |
+| Connected indicator    | `#22c55e` (green)     |
+| Disconnected indicator | `#ef4444` (red)       |
 
 ---
 
@@ -317,6 +319,7 @@ The Python sidecar is spawned fresh for each connection, so changes to `sidecar/
 ### "Failed to start sidecar"
 
 The Rust backend couldn't find or execute `python3`. Make sure:
+
 - `python3` is in your `PATH`
 - `paramiko` is installed: `pip3 install paramiko`
 
@@ -345,8 +348,8 @@ The Rust backend couldn't find or execute `python3`. Make sure:
 - [x] Advanced session management (Duplicate / Rename tabs)
 - [x] Premium application icons and loading animations
 - [x] Distro logo auto-detection
-- [ ] SFTP file browser / transfer
-- [ ] Encrypted storage for passwords and keys (OS keychain integration)
+- [x] SFTP file browser / transfer
+- [x] Encrypted storage for passwords and keys (OS keychain integration)
 - [ ] SSH agent forwarding
 - [ ] Port forwarding (local/remote tunnels)
 - [ ] Snippet / command library

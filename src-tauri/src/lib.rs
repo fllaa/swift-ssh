@@ -1,6 +1,9 @@
+mod crypto;
+mod secure_storage;
 mod sftp_bridge;
 mod ssh_bridge;
 
+use secure_storage::SecureVault;
 use sftp_bridge::SftpBridge;
 use ssh_bridge::SshBridge;
 use std::sync::Arc;
@@ -16,6 +19,8 @@ pub fn run() {
             app.manage(bridge);
             let sftp = Arc::new(Mutex::new(SftpBridge::new(app.handle().clone())));
             app.manage(sftp);
+            let vault = Arc::new(Mutex::new(SecureVault::new()));
+            app.manage(vault);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -38,27 +43,86 @@ pub fn run() {
             sftp_command,
             list_local_dir,
             get_home_dir,
+            // Vault commands
+            vault_status,
+            init_vault,
+            unlock_vault,
+            lock_vault,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
 
+// ── Vault Commands ─────────────────────────────────────────
+
+#[tauri::command]
+async fn vault_status(
+    vault: tauri::State<'_, Arc<Mutex<SecureVault>>>,
+) -> Result<serde_json::Value, String> {
+    let v = vault.lock().await;
+    Ok(serde_json::json!({
+        "initialized": SecureVault::is_initialized(),
+        "unlocked": v.is_unlocked(),
+    }))
+}
+
+#[tauri::command]
+async fn init_vault(
+    password: String,
+    vault: tauri::State<'_, Arc<Mutex<SecureVault>>>,
+) -> Result<(), String> {
+    let mut v = vault.lock().await;
+    v.init(&password)
+}
+
+#[tauri::command]
+async fn unlock_vault(
+    password: String,
+    vault: tauri::State<'_, Arc<Mutex<SecureVault>>>,
+) -> Result<(), String> {
+    let mut v = vault.lock().await;
+    v.unlock(&password)
+}
+
+#[tauri::command]
+async fn lock_vault(
+    vault: tauri::State<'_, Arc<Mutex<SecureVault>>>,
+) -> Result<(), String> {
+    let mut v = vault.lock().await;
+    v.lock();
+    Ok(())
+}
+
 // ── Host CRUD ──────────────────────────────────────────
 
 #[tauri::command]
-async fn list_hosts() -> Result<Vec<serde_json::Value>, String> {
+async fn list_hosts(
+    vault: tauri::State<'_, Arc<Mutex<SecureVault>>>,
+) -> Result<Vec<serde_json::Value>, String> {
     let storage = ssh_bridge::storage_dir();
     let path = storage.join("hosts.json");
     if !path.exists() {
         return Ok(vec![]);
     }
     let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let hosts: Vec<serde_json::Value> = serde_json::from_str(&data).map_err(|e| e.to_string())?;
+    let mut hosts: Vec<serde_json::Value> = serde_json::from_str(&data).map_err(|e| e.to_string())?;
+
+    // Decrypt sensitive fields if vault is unlocked
+    let v = vault.lock().await;
+    if let Ok(key) = v.get_key() {
+        for host in hosts.iter_mut() {
+            let _ = secure_storage::decrypt_sensitive_fields(host, key, &["password"]);
+        }
+    }
+
     Ok(hosts)
 }
 
 #[tauri::command]
-async fn save_host(profile: serde_json::Value) -> Result<(), String> {
+async fn save_host(
+    mut profile: serde_json::Value,
+    vault: tauri::State<'_, Arc<Mutex<SecureVault>>>,
+) -> Result<(), String> {
     let storage = ssh_bridge::storage_dir();
     std::fs::create_dir_all(&storage).map_err(|e| e.to_string())?;
     let path = storage.join("hosts.json");
@@ -69,6 +133,12 @@ async fn save_host(profile: serde_json::Value) -> Result<(), String> {
     } else {
         vec![]
     };
+
+    // Encrypt sensitive fields before saving
+    let v = vault.lock().await;
+    if let Ok(key) = v.get_key() {
+        secure_storage::encrypt_sensitive_fields(&mut profile, key, &["password"])?;
+    }
 
     let id = profile.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
     if let Some(pos) = hosts.iter().position(|h| h.get("id").and_then(|v| v.as_str()) == Some(&id)) {
@@ -100,19 +170,34 @@ async fn delete_host(host_id: String) -> Result<(), String> {
 // ── Key CRUD ───────────────────────────────────────────
 
 #[tauri::command]
-async fn list_keys() -> Result<Vec<serde_json::Value>, String> {
+async fn list_keys(
+    vault: tauri::State<'_, Arc<Mutex<SecureVault>>>,
+) -> Result<Vec<serde_json::Value>, String> {
     let storage = ssh_bridge::storage_dir();
     let path = storage.join("keys.json");
     if !path.exists() {
         return Ok(vec![]);
     }
     let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let keys: Vec<serde_json::Value> = serde_json::from_str(&data).map_err(|e| e.to_string())?;
+    let mut keys: Vec<serde_json::Value> = serde_json::from_str(&data).map_err(|e| e.to_string())?;
+
+    // Decrypt sensitive fields if vault is unlocked
+    let v = vault.lock().await;
+    if let Ok(key) = v.get_key() {
+        for k in keys.iter_mut() {
+            let _ = secure_storage::decrypt_sensitive_fields(k, key, &["privateKey"]);
+        }
+    }
+
     Ok(keys)
 }
 
 #[tauri::command]
-async fn save_key(name: String, private_key_content: String) -> Result<serde_json::Value, String> {
+async fn save_key(
+    name: String,
+    private_key_content: String,
+    vault: tauri::State<'_, Arc<Mutex<SecureVault>>>,
+) -> Result<serde_json::Value, String> {
     let storage = ssh_bridge::storage_dir();
     std::fs::create_dir_all(&storage).map_err(|e| e.to_string())?;
     let path = storage.join("keys.json");
@@ -126,17 +211,27 @@ async fn save_key(name: String, private_key_content: String) -> Result<serde_jso
 
     let id = uuid::Uuid::new_v4().to_string();
     let fingerprint = format!("SHA256:{}", &id[..12]);
-    let key = serde_json::json!({
+    let mut key_obj = serde_json::json!({
         "id": id,
         "name": name,
         "fingerprint": fingerprint,
         "privateKey": private_key_content,
     });
-    keys.push(key.clone());
+
+    // Return the unencrypted version to the frontend
+    let return_obj = key_obj.clone();
+
+    // Encrypt before saving to disk
+    let v = vault.lock().await;
+    if let Ok(enc_key) = v.get_key() {
+        secure_storage::encrypt_sensitive_fields(&mut key_obj, enc_key, &["privateKey"])?;
+    }
+
+    keys.push(key_obj);
 
     let data = serde_json::to_string_pretty(&keys).map_err(|e| e.to_string())?;
     std::fs::write(&path, data).map_err(|e| e.to_string())?;
-    Ok(key)
+    Ok(return_obj)
 }
 
 #[tauri::command]
@@ -211,11 +306,24 @@ async fn delete_group(group_id: String) -> Result<(), String> {
 // ── Detect Distro ──────────────────────────────────────
 
 #[tauri::command]
-async fn detect_distro(host_id: String) -> Result<String, String> {
+async fn detect_distro(
+    host_id: String,
+    vault: tauri::State<'_, Arc<Mutex<SecureVault>>>,
+) -> Result<String, String> {
     let storage = ssh_bridge::storage_dir();
     let hosts_path = storage.join("hosts.json");
     let data = std::fs::read_to_string(&hosts_path).map_err(|e| e.to_string())?;
-    let hosts: Vec<serde_json::Value> = serde_json::from_str(&data).map_err(|e| e.to_string())?;
+    let mut hosts: Vec<serde_json::Value> = serde_json::from_str(&data).map_err(|e| e.to_string())?;
+
+    // Decrypt sensitive fields for the target host
+    let v = vault.lock().await;
+    if let Ok(key) = v.get_key() {
+        for host in hosts.iter_mut() {
+            let _ = secure_storage::decrypt_sensitive_fields(host, key, &["password"]);
+        }
+    }
+    drop(v);
+
     let host = hosts
         .iter()
         .find(|h| h.get("id").and_then(|v| v.as_str()) == Some(&host_id))
@@ -228,7 +336,15 @@ async fn detect_distro(host_id: String) -> Result<String, String> {
             let keys_path = storage.join("keys.json");
             if keys_path.exists() {
                 let kdata = std::fs::read_to_string(&keys_path).map_err(|e| e.to_string())?;
-                let keys: Vec<serde_json::Value> = serde_json::from_str(&kdata).unwrap_or_default();
+                let mut keys: Vec<serde_json::Value> = serde_json::from_str(&kdata).unwrap_or_default();
+                // Decrypt private keys
+                let v2 = vault.lock().await;
+                if let Ok(enc_key) = v2.get_key() {
+                    for k in keys.iter_mut() {
+                        let _ = secure_storage::decrypt_sensitive_fields(k, enc_key, &["privateKey"]);
+                    }
+                }
+                drop(v2);
                 if let Some(key) = keys.iter().find(|k| k.get("id").and_then(|v| v.as_str()) == Some(key_id)) {
                     key_content = key.get("privateKey").and_then(|v| v.as_str()).map(|s| s.to_string());
                 }
@@ -262,16 +378,28 @@ async fn detect_distro(host_id: String) -> Result<String, String> {
 // ── Test Connection ────────────────────────────────────
 
 #[tauri::command]
-async fn test_connection(profile: serde_json::Value) -> Result<String, String> {
+async fn test_connection(
+    profile: serde_json::Value,
+    vault: tauri::State<'_, Arc<Mutex<SecureVault>>>,
+) -> Result<String, String> {
     let storage = ssh_bridge::storage_dir();
 
+    // The profile comes from the frontend with decrypted fields already,
+    // but we need to decrypt key content from storage
     let mut key_content: Option<String> = None;
     if profile.get("authMethod").and_then(|v| v.as_str()) == Some("key") {
         if let Some(key_id) = profile.get("keyId").and_then(|v| v.as_str()) {
             let keys_path = storage.join("keys.json");
             if keys_path.exists() {
                 let kdata = std::fs::read_to_string(&keys_path).map_err(|e| e.to_string())?;
-                let keys: Vec<serde_json::Value> = serde_json::from_str(&kdata).unwrap_or_default();
+                let mut keys: Vec<serde_json::Value> = serde_json::from_str(&kdata).unwrap_or_default();
+                let v = vault.lock().await;
+                if let Ok(enc_key) = v.get_key() {
+                    for k in keys.iter_mut() {
+                        let _ = secure_storage::decrypt_sensitive_fields(k, enc_key, &["privateKey"]);
+                    }
+                }
+                drop(v);
                 if let Some(key) = keys.iter().find(|k| k.get("id").and_then(|v| v.as_str()) == Some(key_id)) {
                     key_content = key.get("privateKey").and_then(|v| v.as_str()).map(|s| s.to_string());
                 }
@@ -320,9 +448,12 @@ async fn test_connection(profile: serde_json::Value) -> Result<String, String> {
 async fn connect_host(
     host_id: String,
     state: tauri::State<'_, Arc<Mutex<SshBridge>>>,
+    vault: tauri::State<'_, Arc<Mutex<SecureVault>>>,
 ) -> Result<String, String> {
+    let v = vault.lock().await;
+    let key = v.get_key().ok();
     let mut bridge = state.lock().await;
-    bridge.connect(&host_id).await
+    bridge.connect(&host_id, key).await
 }
 
 #[tauri::command]
@@ -350,9 +481,12 @@ async fn send_input(
 async fn connect_sftp(
     host_id: String,
     state: tauri::State<'_, Arc<Mutex<SftpBridge>>>,
+    vault: tauri::State<'_, Arc<Mutex<SecureVault>>>,
 ) -> Result<String, String> {
+    let v = vault.lock().await;
+    let key = v.get_key().ok();
     let mut bridge = state.lock().await;
-    bridge.connect(&host_id).await
+    bridge.connect(&host_id, key).await
 }
 
 #[tauri::command]

@@ -13,6 +13,7 @@ import NewActionModal from "./components/NewActionModal";
 import KeysScreen from "./components/KeysScreen";
 import AddKeyModal from "./components/AddKeyModal";
 import NewTabModal from "./components/NewTabModal";
+import UnlockModal from "./components/UnlockModal";
 import {
   Search,
   LayoutGrid,
@@ -60,6 +61,7 @@ export default function App() {
     tabId: string;
   } | null>(null);
   const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
+  const [vaultUnlocked, setVaultUnlocked] = useState(false);
 
   const activeVault = vaults.find((v) => v.id === activeVaultId) || vaults[0];
 
@@ -102,12 +104,13 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Load hosts, keys, and groups on mount
+  // Load hosts, keys, and groups after vault unlock
   useEffect(() => {
+    if (!vaultUnlocked) return;
     invoke<HostProfile[]>("list_hosts").then(setHosts).catch(console.error);
     invoke<SSHKey[]>("list_keys").then(setKeys).catch(console.error);
     invoke<Group[]>("list_groups").then(setGroups).catch(console.error);
-  }, []);
+  }, [vaultUnlocked]);
 
   // Listen for SSH disconnect events
   useEffect(() => {
@@ -121,6 +124,10 @@ export default function App() {
       unlistenDisconnect.then((fn) => fn());
     };
   }, []);
+
+  if (!vaultUnlocked) {
+    return <UnlockModal onUnlocked={() => setVaultUnlocked(true)} />;
+  }
 
   return (
     <div className="flex flex-col h-screen w-screen bg-space-dark text-slate-100 font-sans overflow-hidden">

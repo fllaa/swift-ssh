@@ -4,6 +4,7 @@ use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use tauri::{AppHandle, Emitter};
 
+use crate::secure_storage;
 use crate::ssh_bridge;
 
 struct SftpSession {
@@ -24,18 +25,23 @@ impl SftpBridge {
         }
     }
 
-    pub async fn connect(&mut self, host_id: &str) -> Result<String, String> {
+    pub async fn connect(&mut self, host_id: &str, enc_key: Option<&[u8; 32]>) -> Result<String, String> {
         eprintln!("[sftp_bridge] connect: host_id={}", host_id);
 
         let storage = ssh_bridge::storage_dir();
         let hosts_path = storage.join("hosts.json");
         let data = std::fs::read_to_string(&hosts_path).map_err(|e| e.to_string())?;
         let hosts: Vec<Value> = serde_json::from_str(&data).map_err(|e| e.to_string())?;
-        let host = hosts
+        let mut host = hosts
             .iter()
             .find(|h| h.get("id").and_then(|v| v.as_str()) == Some(host_id))
             .ok_or("Host not found")?
             .clone();
+
+        // Decrypt password field if encrypted
+        if let Some(key) = enc_key {
+            let _ = secure_storage::decrypt_sensitive_fields(&mut host, key, &["password"]);
+        }
 
         let session_id = uuid::Uuid::new_v4().to_string();
 
@@ -46,7 +52,13 @@ impl SftpBridge {
                 if keys_path.exists() {
                     let kdata =
                         std::fs::read_to_string(&keys_path).map_err(|e| e.to_string())?;
-                    let keys: Vec<Value> = serde_json::from_str(&kdata).unwrap_or_default();
+                    let mut keys: Vec<Value> = serde_json::from_str(&kdata).unwrap_or_default();
+                    // Decrypt private key fields
+                    if let Some(ek) = enc_key {
+                        for k in keys.iter_mut() {
+                            let _ = secure_storage::decrypt_sensitive_fields(k, ek, &["privateKey"]);
+                        }
+                    }
                     if let Some(key) = keys
                         .iter()
                         .find(|k| k.get("id").and_then(|v| v.as_str()) == Some(key_id))
