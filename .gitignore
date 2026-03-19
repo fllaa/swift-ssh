@@ -5,3 +5,6 @@ sidecar/__pycache__/
 sidecar/.venv/
 *.pyc
 .DS_Store
+
+# Claude
+.claude/*.local.*
