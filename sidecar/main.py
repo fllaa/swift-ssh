@@ -20,6 +20,7 @@ import os
 import traceback
 
 import paramiko
+from paramiko.agent import AgentRequestHandler
 
 
 def log(msg: str):
@@ -61,8 +62,9 @@ def main():
     username = host.get("username", "root")
     auth_method = host.get("authMethod", "password")
     password = host.get("password", "")
+    agent_forwarding = host.get("agentForwarding", False)
 
-    log(f"connecting to {username}@{hostname}:{port} auth={auth_method}")
+    log(f"connecting to {username}@{hostname}:{port} auth={auth_method} agent_fw={agent_forwarding}")
 
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -73,7 +75,7 @@ def main():
             "port": port,
             "username": username,
             "timeout": 15,
-            "allow_agent": False,
+            "allow_agent": agent_forwarding,
             "look_for_keys": False,
         }
 
@@ -160,6 +162,10 @@ def main():
         channel = client.invoke_shell(term="xterm-256color", width=120, height=40)
         channel.settimeout(0.1)
         log("shell channel opened")
+
+        if agent_forwarding:
+            AgentRequestHandler(channel)
+            log("agent forwarding handler started")
 
         # Thread: read from SSH channel → stdout as base64 JSON lines
         def read_channel():

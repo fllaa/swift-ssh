@@ -36,6 +36,7 @@ export default function AddHostModal({ host, onClose }: AddHostModalProps) {
   const [keyId, setKeyId] = useState(host?.keyId ?? "");
   
   const [tags, setTags] = useState(host?.tags ?? "");
+  const [agentForwarding, setAgentForwarding] = useState(host?.agentForwarding ?? false);
   const [showAdvanced, setShowAdvanced] = useState(true);
   
   const [groupSearch, setGroupSearch] = useState("");
@@ -72,6 +73,7 @@ export default function AddHostModal({ host, onClose }: AddHostModalProps) {
     authMethod,
     groupId,
     tags,
+    agentForwarding,
     ...(authMethod === "password" ? { password } : { keyId }),
   });
 
@@ -271,7 +273,7 @@ export default function AddHostModal({ host, onClose }: AddHostModalProps) {
               <div>
                 <label className="block text-sm font-semibold text-slate-300 mb-1.5">Username</label>
                 <div className="relative">
-                  <User className="absolute left-3 top-[14px] text-slate-500 w-5 h-5" />
+                  <User className="absolute left-3 top-3.5 text-slate-500 w-5 h-5" />
                   <input 
                     className="w-full bg-space-dark border border-slate-800 rounded-xl text-white pl-10 pr-4 placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-12 outline-none transition-all" 
                     placeholder="root" 
@@ -286,7 +288,7 @@ export default function AddHostModal({ host, onClose }: AddHostModalProps) {
                 <div>
                   <label className="block text-sm font-semibold text-slate-300 mb-1.5">Password</label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-[14px] text-slate-500 w-5 h-5" />
+                    <Lock className="absolute left-3 top-3.5 text-slate-500 w-5 h-5" />
                     <input 
                       className="w-full bg-space-dark border border-slate-800 rounded-xl text-white pl-10 pr-4 placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-12 outline-none transition-all" 
                       placeholder="••••••••" 
@@ -300,7 +302,7 @@ export default function AddHostModal({ host, onClose }: AddHostModalProps) {
                 <div>
                   <label className="block text-sm font-semibold text-slate-300 mb-1.5">SSH Key</label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-[14px] text-slate-500 w-5 h-5 pointer-events-none" />
+                    <Lock className="absolute left-3 top-3.5 text-slate-500 w-5 h-5 pointer-events-none" />
                     <select 
                       className="w-full bg-space-dark border border-slate-800 rounded-xl text-white pl-10 pr-4 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-12 outline-none transition-all appearance-none"
                       value={keyId}
@@ -358,6 +360,21 @@ export default function AddHostModal({ host, onClose }: AddHostModalProps) {
                   value={tags}
                   onChange={(e) => setTags(e.target.value)}
                 />
+
+                <div className="mt-4 flex items-center justify-between p-4 bg-space-dark border border-slate-800 rounded-xl">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-200">SSH Agent Forwarding</h4>
+                    <p className="text-xs text-slate-500 mt-0.5">Allow remote server to use your local SSH agent</p>
+                  </div>
+                  <button
+                    onClick={() => setAgentForwarding(!agentForwarding)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${agentForwarding ? 'bg-blue-500' : 'bg-slate-700'}`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${agentForwarding ? 'translate-x-6' : 'translate-x-1'}`}
+                    />
+                  </button>
+                </div>
               </div>
             )}
           </div>

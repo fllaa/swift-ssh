@@ -237,7 +237,7 @@ def main():
             "port": port,
             "username": username,
             "timeout": 15,
-            "allow_agent": False,
+            "allow_agent": host.get("agentForwarding", False),
             "look_for_keys": False,
         }
 

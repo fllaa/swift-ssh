@@ -13,6 +13,7 @@ export interface HostProfile {
   tags?: string;
   osIcon?: string;
   lastConnected?: number;
+  agentForwarding?: boolean;
 }
 
 export interface Group {
