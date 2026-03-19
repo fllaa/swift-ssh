@@ -53,6 +53,9 @@ pub fn run() {
             save_port_forwarding_rule,
             delete_port_forwarding_rule,
             sync_port_forwarding,
+            list_snippets,
+            save_snippet,
+            delete_snippet,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -365,6 +368,60 @@ async fn delete_port_forwarding_rule(id: String) -> Result<(), String> {
         true
     });
     let data = serde_json::to_string_pretty(&rules).map_err(|e| e.to_string())?;
+    std::fs::write(&path, data).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// ── Snippets CRUD ─────────────────────────────────────
+
+#[tauri::command]
+async fn list_snippets() -> Result<Vec<serde_json::Value>, String> {
+    let storage = ssh_bridge::storage_dir();
+    let path = storage.join("snippets.json");
+    if !path.exists() {
+        return Ok(vec![]);
+    }
+    let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let snippets: Vec<serde_json::Value> = serde_json::from_str(&data).map_err(|e| e.to_string())?;
+    Ok(snippets)
+}
+
+#[tauri::command]
+async fn save_snippet(snippet: serde_json::Value) -> Result<(), String> {
+    let storage = ssh_bridge::storage_dir();
+    std::fs::create_dir_all(&storage).map_err(|e| e.to_string())?;
+    let path = storage.join("snippets.json");
+
+    let mut snippets: Vec<serde_json::Value> = if path.exists() {
+        let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&data).unwrap_or_default()
+    } else {
+        vec![]
+    };
+
+    let id = snippet.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    if let Some(pos) = snippets.iter().position(|s| s.get("id").and_then(|v| v.as_str()) == Some(&id)) {
+        snippets[pos] = snippet;
+    } else {
+        snippets.push(snippet);
+    }
+
+    let data = serde_json::to_string_pretty(&snippets).map_err(|e| e.to_string())?;
+    std::fs::write(&path, data).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn delete_snippet(id: String) -> Result<(), String> {
+    let storage = ssh_bridge::storage_dir();
+    let path = storage.join("snippets.json");
+    if !path.exists() {
+        return Ok(());
+    }
+    let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let mut snippets: Vec<serde_json::Value> = serde_json::from_str(&data).unwrap_or_default();
+    snippets.retain(|s| s.get("id").and_then(|v| v.as_str()) != Some(&id));
+    let data = serde_json::to_string_pretty(&snippets).map_err(|e| e.to_string())?;
     std::fs::write(&path, data).map_err(|e| e.to_string())?;
     Ok(())
 }

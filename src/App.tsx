@@ -16,6 +16,7 @@ import NewTabModal from "./components/NewTabModal";
 import UnlockModal from "./components/UnlockModal";
 import PortForwardingScreen from "./components/PortForwardingScreen";
 import AddPortForwardingModal from "./components/AddPortForwardingModal";
+import SnippetsScreen from "./components/SnippetsScreen";
 import {
   Search,
   LayoutGrid,
@@ -116,6 +117,9 @@ export default function App() {
     invoke<Group[]>("list_groups").then(setGroups).catch(console.error);
     invoke<PortForwardingRule[]>("list_port_forwarding_rules").then((rules) => {
       useStore.getState().setPortForwardingRules(rules);
+    }).catch(console.error);
+    invoke<any[]>("list_snippets").then((snippets) => {
+      useStore.getState().setSnippets(snippets);
     }).catch(console.error);
   }, [vaultUnlocked]);
 
@@ -499,6 +503,10 @@ export default function App() {
                   setShowAddPortForwarding(true);
                 }}
               />
+            )}
+
+            {activeTabId === null && sidebarView === "snippets" && (
+              <SnippetsScreen />
             )}
           </div>
         </main>

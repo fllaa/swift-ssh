@@ -47,7 +47,14 @@ export default function Sidebar({ onAddHost, onEditHost }: SidebarProps) {
           <Shuffle className="w-4 h-4" />
           <span>Port Forwarding</span>
         </button>
-        <button className="w-full flex items-center space-x-3 px-3 py-2 text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition-all">
+        <button
+          onClick={() => setSidebarView("snippets")}
+          className={`w-full flex items-center space-x-3 px-3 py-2 text-sm font-medium rounded-r-md transition-all ${
+            sidebarView === "snippets"
+              ? "bg-accent-blue/10 text-accent-blue border-l-2 border-accent-blue"
+              : "text-slate-400 hover:text-white hover:bg-slate-800"
+          }`}
+        >
           <Terminal className="w-4 h-4" />
           <span>Snippets</span>
         </button>

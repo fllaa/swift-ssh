@@ -47,6 +47,14 @@ export interface SSHKey {
   privateKey: string;
 }
 
+export interface Snippet {
+  id: string;
+  name: string;
+  content: string;
+  description?: string;
+  tags?: string;
+}
+
 export interface TabSession {
   tabId: string; // local tab ID (stable, used for UI)
   sessionId: string | null; // SSH session ID (set after connect)
@@ -88,11 +96,12 @@ interface AppState {
   activeVaultId: string | null;
   tabs: TabSession[];
   activeTabId: string | null;
-  sidebarView: "hosts" | "keys" | "port-forwarding";
+  sidebarView: "hosts" | "keys" | "port-forwarding" | "snippets";
   dashboardViewMode: "grid" | "list";
   transfers: Transfer[];
   portForwardingRules: PortForwardingRule[];
   forwardingSessions: Record<string, string>; // hostId -> sessionId
+  snippets: Snippet[];
 
   setHosts: (hosts: HostProfile[]) => void;
   addHost: (host: HostProfile) => void;
@@ -119,7 +128,9 @@ interface AppState {
   markDisconnected: (sessionId: string) => void;
 
   renameTab: (tabId: string, label: string) => void;
-  setSidebarView: (view: "hosts" | "keys" | "port-forwarding") => void;
+  setSidebarView: (
+    view: "hosts" | "keys" | "port-forwarding" | "snippets",
+  ) => void;
   setDashboardViewMode: (mode: "grid" | "list") => void;
 
   addTransfer: (transfer: Transfer) => void;
@@ -133,6 +144,11 @@ interface AppState {
   removePortForwardingRule: (id: string) => void;
   setForwardingSession: (hostId: string, sessionId: string) => void;
   removeForwardingSession: (hostId: string) => void;
+
+  setSnippets: (snippets: Snippet[]) => void;
+  addSnippet: (snippet: Snippet) => void;
+  updateSnippet: (snippet: Snippet) => void;
+  removeSnippet: (id: string) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -148,12 +164,14 @@ export const useStore = create<AppState>((set) => ({
   transfers: [],
   portForwardingRules: [],
   forwardingSessions: {},
+  snippets: [],
 
   setHosts: (hosts) => set({ hosts }),
   addHost: (host) => set((s) => ({ hosts: [...s.hosts, host] })),
   updateHost: (host) =>
     set((s) => ({ hosts: s.hosts.map((h) => (h.id === host.id ? host : h)) })),
-  removeHost: (id) => set((s) => ({ hosts: s.hosts.filter((h) => h.id !== id) })),
+  removeHost: (id) =>
+    set((s) => ({ hosts: s.hosts.filter((h) => h.id !== id) })),
 
   setKeys: (keys) => set({ keys }),
   addKey: (key) => set((s) => ({ keys: [...s.keys, key] })),
@@ -165,19 +183,22 @@ export const useStore = create<AppState>((set) => ({
     set((s) => ({
       groups: s.groups.map((g) => (g.id === group.id ? group : g)),
     })),
-  removeGroup: (id) => set((s) => ({ groups: s.groups.filter((g) => g.id !== id) })),
+  removeGroup: (id) =>
+    set((s) => ({ groups: s.groups.filter((g) => g.id !== id) })),
 
   setVaults: (vaults) => set({ vaults }),
   addVault: (vault) => set((s) => ({ vaults: [...s.vaults, vault] })),
   setActiveVaultId: (id) => set({ activeVaultId: id }),
 
-  addTab: (tab) => set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tab.tabId })),
+  addTab: (tab) =>
+    set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tab.tabId })),
   removeTab: (tabId) =>
     set((s) => {
       const newTabs = s.tabs.filter((t) => t.tabId !== tabId);
       let nextActiveTabId = s.activeTabId;
       if (s.activeTabId === tabId) {
-        nextActiveTabId = newTabs.length > 0 ? newTabs[newTabs.length - 1].tabId : null;
+        nextActiveTabId =
+          newTabs.length > 0 ? newTabs[newTabs.length - 1].tabId : null;
       }
       return {
         tabs: newTabs,
@@ -188,13 +209,13 @@ export const useStore = create<AppState>((set) => ({
   setTabSessionId: (tabId, sessionId) =>
     set((s) => ({
       tabs: s.tabs.map((t) =>
-        t.tabId === tabId ? { ...t, sessionId, connected: true } : t
+        t.tabId === tabId ? { ...t, sessionId, connected: true } : t,
       ),
     })),
   markDisconnected: (sessionId) =>
     set((s) => ({
       tabs: s.tabs.map((t) =>
-        t.sessionId === sessionId ? { ...t, connected: false } : t
+        t.sessionId === sessionId ? { ...t, connected: false } : t,
       ),
     })),
 
@@ -209,13 +230,17 @@ export const useStore = create<AppState>((set) => ({
     set((s) => ({ transfers: [...s.transfers, transfer] })),
   updateTransfer: (id, update) =>
     set((s) => ({
-      transfers: s.transfers.map((t) => (t.id === id ? { ...t, ...update } : t)),
+      transfers: s.transfers.map((t) =>
+        t.id === id ? { ...t, ...update } : t,
+      ),
     })),
   removeTransfer: (id) =>
     set((s) => ({ transfers: s.transfers.filter((t) => t.id !== id) })),
   clearCompletedTransfers: () =>
     set((s) => ({
-      transfers: s.transfers.filter((t) => t.status !== "completed" && t.status !== "failed"),
+      transfers: s.transfers.filter(
+        (t) => t.status !== "completed" && t.status !== "failed",
+      ),
     })),
 
   setPortForwardingRules: (rules) => set({ portForwardingRules: rules }),
@@ -224,7 +249,7 @@ export const useStore = create<AppState>((set) => ({
   updatePortForwardingRule: (rule) =>
     set((s) => ({
       portForwardingRules: s.portForwardingRules.map((r) =>
-        r.id === rule.id ? rule : r
+        r.id === rule.id ? rule : r,
       ),
     })),
   removePortForwardingRule: (id) =>
@@ -241,4 +266,15 @@ export const useStore = create<AppState>((set) => ({
       delete next[hostId];
       return { forwardingSessions: next };
     }),
+
+  setSnippets: (snippets) => set({ snippets }),
+  addSnippet: (snippet) => set((s) => ({ snippets: [...s.snippets, snippet] })),
+  updateSnippet: (snippet) =>
+    set((s) => ({
+      snippets: s.snippets.map((snip) =>
+        snip.id === snippet.id ? snippet : snip,
+      ),
+    })),
+  removeSnippet: (id) =>
+    set((s) => ({ snippets: s.snippets.filter((snip) => snip.id !== id) })),
 }));
