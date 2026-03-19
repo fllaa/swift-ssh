@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { invoke } from "@tauri-apps/api/core";
@@ -8,6 +8,13 @@ import { normalizeDistroId } from "../utils/distroIcon";
 import SSHErrorOverlay, { SSHErrorType } from "./SSHErrorOverlay";
 import LoadingScreen from "./LoadingScreen";
 import { Code, Search, Send, X, Terminal as TerminalIcon } from "lucide-react";
+import {
+  getTerminalInstance,
+  setTerminalInstance,
+  destroyTerminalInstance,
+  hasTerminalInstance,
+  type TerminalInstance,
+} from "../lib/terminalManager";
 
 interface TerminalTabProps {
   readonly tabId: string;
@@ -18,40 +25,59 @@ interface TerminalTabProps {
 
 export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: TerminalTabProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const termRef = useRef<Terminal | null>(null);
-  const sessionIdRef = useRef<string | null>(null);
-  const [connecting, setConnecting] = useState(true);
+  const [connecting, setConnecting] = useState(() => !hasTerminalInstance(tabId));
   const [sshError, setSshError] = useState<{ type: SSHErrorType; message: string } | null>(null);
-  const [reconnectKey, setReconnectKey] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [snippetSearch, setSnippetSearch] = useState("");
-  const fitAddonRef = useRef<FitAddon | null>(null);
 
   const setTabSessionId = useStore((s) => s.setTabSessionId);
   const { hosts, updateHost, snippets } = useStore();
 
   const host = hosts.find(h => h.id === hostId);
 
+  // Get terminal instance ref for use in callbacks
+  const getInstanceRef = useCallback(() => getTerminalInstance(tabId), [tabId]);
+
   // Re-fit terminal when sidebar toggles
   useEffect(() => {
-    if (fitAddonRef.current) {
-      // Small delay to allow layout transition to finish
-      setTimeout(() => {
-        fitAddonRef.current?.fit();
-      }, 300);
+    const instance = getInstanceRef();
+    if (instance) {
+      setTimeout(() => instance.fitAddon.fit(), 300);
     }
-  }, [isSidebarOpen]);
+  }, [isSidebarOpen, getInstanceRef]);
 
   // Auto-focus terminal when dragging ends
   const isDraggingTabGlobal = useStore((s) => s.isDraggingTab);
   useEffect(() => {
-    if (!isDraggingTabGlobal && termRef.current) {
-      termRef.current.focus();
+    if (!isDraggingTabGlobal) {
+      const instance = getInstanceRef();
+      if (instance) instance.terminal.focus();
     }
-  }, [isDraggingTabGlobal]);
+  }, [isDraggingTabGlobal, getInstanceRef]);
 
   useEffect(() => {
     if (!containerRef.current) return;
+
+    const existing = getTerminalInstance(tabId);
+
+    if (existing) {
+      // Reattach existing terminal DOM element to new container
+      containerRef.current.appendChild(existing.element);
+      requestAnimationFrame(() => existing.fitAddon.fit());
+      existing.terminal.focus();
+      return () => {
+        // Detach but don't destroy - terminal survives across layout changes
+        if (existing.element.parentNode) {
+          existing.element.parentNode.removeChild(existing.element);
+        }
+      };
+    }
+
+    // Create new terminal instance
+    const wrapperEl = document.createElement("div");
+    wrapperEl.style.width = "100%";
+    wrapperEl.style.height = "100%";
+    containerRef.current.appendChild(wrapperEl);
 
     const term = new Terminal({
       theme: {
@@ -85,18 +111,22 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
     });
 
     const fit = new FitAddon();
-    fitAddonRef.current = fit;
     term.loadAddon(fit);
-    term.open(containerRef.current);
+    term.open(wrapperEl);
     requestAnimationFrame(() => fit.fit());
 
-    termRef.current = term;
+    const instance: TerminalInstance = {
+      terminal: term,
+      fitAddon: fit,
+      sessionId: null,
+      element: wrapperEl,
+    };
 
-    // Send input to sidecar (only after connected)
+    // Send input to sidecar
     term.onData((data) => {
-      if (sessionIdRef.current) {
+      if (instance.sessionId) {
         invoke("send_input", {
-          sessionId: sessionIdRef.current,
+          sessionId: instance.sessionId,
           data,
         }).catch((err) =>
           console.error("[TerminalTab] send_input error:", err),
@@ -113,19 +143,17 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
       "ssh-output",
       (event) => {
         if (
-          sessionIdRef.current &&
-          event.payload.sessionId === sessionIdRef.current
+          instance.sessionId &&
+          event.payload.sessionId === instance.sessionId
         ) {
           const data = event.payload.data;
           term.write(data);
 
-          // Check for errors or disconnection from bridge
           if (data.includes("[Error]")) {
             const errorMsg = data.split("[Error]")[1]?.trim() || "Unknown error";
             let type: SSHErrorType = 'generic';
             if (errorMsg.includes("Authentication failed")) type = 'auth';
             else if (errorMsg.includes("private key format") || errorMsg.includes("passphrase")) type = 'key';
-
             setSshError({ type, message: errorMsg });
             setConnecting(false);
           } else if (data.includes("[Connection closed]")) {
@@ -138,7 +166,6 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
             const remaining = Math.max(0, minLoadingTime - elapsed);
             setTimeout(() => {
               setConnecting(false);
-              // Trigger a fit once visible, which will also trigger onResize
               requestAnimationFrame(() => fit.fit());
             }, remaining);
           }
@@ -146,12 +173,16 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
       },
     );
 
+    unlistenPromise.then((fn) => {
+      instance.unlisten = fn;
+    });
+
     const setupConnection = async () => {
       try {
         setSshError(null);
         setConnecting(true);
         const sessionId = await invoke<string>("connect_host", { hostId });
-        sessionIdRef.current = sessionId;
+        instance.sessionId = sessionId;
         setTabSessionId(tabId, sessionId);
         term.clear();
 
@@ -176,7 +207,7 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
         let type: SSHErrorType = 'generic';
         if (errMsg.includes("timed out") || errMsg.includes("unreachable")) type = 'timeout';
         else if (errMsg.includes("Authentication")) type = 'auth';
-        
+
         setSshError({ type, message: errMsg });
         term.write(`\r\n\x1b[31mConnection failed: ${errMsg}\x1b[0m\r\n`);
       }
@@ -190,11 +221,16 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
     const observer = new ResizeObserver(() => fit.fit());
     observer.observe(containerRef.current);
 
+    instance.resizeCleanup = () => {
+      window.removeEventListener("resize", handleResize);
+      observer.disconnect();
+    };
+
     // Sync PTY size with xterm.js
     term.onResize(({ cols, rows }) => {
-      if (sessionIdRef.current) {
+      if (instance.sessionId) {
         invoke("resize_terminal", {
-          sessionId: sessionIdRef.current,
+          sessionId: instance.sessionId,
           cols: Math.floor(cols),
           rows: Math.floor(rows),
         }).catch((err) =>
@@ -203,27 +239,51 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
       }
     });
 
+    // Store in manager
+    setTerminalInstance(tabId, instance);
+
     return () => {
-      unlistenPromise.then((fn) => fn());
-      window.removeEventListener("resize", handleResize);
-      observer.disconnect();
-      term.dispose();
-      fitAddonRef.current = null;
-      if (sessionIdRef.current) {
-        invoke("disconnect_host", { sessionId: sessionIdRef.current }).catch(
-          () => {},
-        );
+      // Detach but don't destroy - terminal survives across layout changes
+      if (wrapperEl.parentNode) {
+        wrapperEl.parentNode.removeChild(wrapperEl);
       }
     };
-  }, [tabId, hostId, reconnectKey]);
+  }, [tabId, hostId]);
+
+  // Handle explicit reconnect
+  const handleReconnect = useCallback(() => {
+    setSshError(null);
+    const instance = getTerminalInstance(tabId);
+    if (instance) {
+      // Disconnect old session
+      if (instance.sessionId) {
+        invoke("disconnect_host", { sessionId: instance.sessionId }).catch(() => {});
+      }
+      // Destroy old instance fully and let useEffect recreate
+      destroyTerminalInstance(tabId);
+    }
+    // Force re-render to trigger useEffect
+    setConnecting(true);
+  }, [tabId]);
+
+  // Handle close - actually destroy the terminal
+  const handleClose = useCallback(() => {
+    const instance = getTerminalInstance(tabId);
+    if (instance?.sessionId) {
+      invoke("disconnect_host", { sessionId: instance.sessionId }).catch(() => {});
+    }
+    destroyTerminalInstance(tabId);
+    onClose();
+  }, [tabId, onClose]);
 
   const insertSnippet = (content: string) => {
-    if (sessionIdRef.current) {
-      const data = content.endsWith("\n") || content.endsWith("\r") 
-        ? content 
+    const instance = getTerminalInstance(tabId);
+    if (instance?.sessionId) {
+      const data = content.endsWith("\n") || content.endsWith("\r")
+        ? content
         : content + "\n";
       invoke("send_input", {
-        sessionId: sessionIdRef.current,
+        sessionId: instance.sessionId,
         data
       }).catch(console.error);
     }
@@ -231,24 +291,16 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
 
   return (
     <div className="relative w-full h-full flex overflow-hidden">
-      {connecting && <LoadingScreen host={host} onCancel={onClose} />}
-      
+      {connecting && <LoadingScreen host={host} onCancel={handleClose} />}
+
       {sshError && host && (
         <SSHErrorOverlay
           errorType={sshError.type}
           errorMessage={sshError.message}
           hostName={host.label || host.hostname}
-          onReconnect={() => {
-            setSshError(null);
-            termRef.current?.clear();
-            if (sessionIdRef.current) {
-               invoke("disconnect_host", { sessionId: sessionIdRef.current }).catch(() => {});
-            }
-            // Trigger the useEffect again
-            setReconnectKey((k) => k + 1);
-          }}
+          onReconnect={handleReconnect}
           onEditHost={() => onEditHost(host)}
-          onCloseTab={onClose}
+          onCloseTab={handleClose}
         />
       )}
 
@@ -256,7 +308,7 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
       <div className="flex-1 min-w-0 relative">
         <div
           ref={containerRef}
-          onClick={() => termRef.current?.focus()}
+          onClick={() => getTerminalInstance(tabId)?.terminal.focus()}
           className={`w-full h-full p-1 transition-opacity duration-500 ${connecting ? "opacity-0 invisible" : "opacity-100 visible"}`}
           style={{ backgroundColor: "#0f1117" }}
         />
@@ -266,8 +318,8 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className={`absolute top-4 right-4 p-2.5 rounded-xl transition-all shadow-xl z-20 overflow-hidden ${
-              isSidebarOpen 
-                ? "bg-blue-600 text-white" 
+              isSidebarOpen
+                ? "bg-blue-600 text-white"
                 : "bg-[#1e2130]/80 text-gray-400 hover:text-white hover:bg-blue-600/40 backdrop-blur-md border border-white/5"
             }`}
             title="Snippets Sidebar"
@@ -278,7 +330,7 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
       </div>
 
       {/* Right Sidebar */}
-      <div 
+      <div
         className={`bg-[#1e2130]/90 backdrop-blur-xl border-l border-white/10 flex flex-col transition-all duration-300 ease-in-out overflow-hidden ${
           isSidebarOpen ? "w-80" : "w-0 opacity-0 border-none"
         }`}
@@ -299,7 +351,7 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
             />
           </div>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
           {snippets
             .filter(s => s.name.toLowerCase().includes(snippetSearch.toLowerCase()) || s.tags?.toLowerCase().includes(snippetSearch.toLowerCase()))

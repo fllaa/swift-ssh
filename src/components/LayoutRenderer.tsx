@@ -3,7 +3,6 @@ import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { useStore, LayoutNode, removeFromLayout } from "../store/useStore";
 import TerminalTab from "./TerminalTab";
 import SftpTab from "./SftpTab";
-import { invoke } from "@tauri-apps/api/core";
 
 interface LayoutRendererProps {
   tabGroupId: string;
@@ -202,11 +201,8 @@ export default function LayoutRenderer({
               hostId={session.hostId}
               onEditHost={onEditHost}
               onClose={() => {
-                if (session.sessionId) {
-                  invoke("disconnect_host", {
-                    sessionId: session.sessionId,
-                  }).catch(() => {});
-                }
+                // Terminal disconnection is handled by TerminalTab's handleClose
+                // via destroyTerminalInstance - we only handle layout cleanup here
                 const state = useStore.getState();
                 const fullRoot = state.tabs.find(
                   (t) => t.id === tabGroupId,
