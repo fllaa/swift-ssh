@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { invoke } from "@tauri-apps/api/core";
 import { useStore, HostProfile } from "../store/useStore";
+import { ask } from "@tauri-apps/plugin-dialog";
 
 interface HostListProps {
   onAddHost: () => void;
@@ -25,7 +26,11 @@ export default function HostList({ onAddHost, onEditHost }: HostListProps) {
   };
 
   const handleDelete = async (host: HostProfile) => {
-    if (!confirm(`Delete host "${host.label}"?`)) return;
+    const confirmed = await ask(`Delete host "${host.label}"?`, {
+      title: "Confirm Deletion",
+      kind: "warning",
+    });
+    if (!confirmed) return;
     try {
       await invoke("delete_host", { hostId: host.id });
       removeHost(host.id);

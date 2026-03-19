@@ -14,6 +14,7 @@ use tokio::sync::Mutex;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let bridge = Arc::new(Mutex::new(SshBridge::new(app.handle().clone())));
             app.manage(bridge);
@@ -48,6 +49,9 @@ pub fn run() {
             init_vault,
             unlock_vault,
             lock_vault,
+            list_port_forwarding_rules,
+            save_port_forwarding_rule,
+            delete_port_forwarding_rule,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -299,6 +303,67 @@ async fn delete_group(group_id: String) -> Result<(), String> {
     let mut groups: Vec<serde_json::Value> = serde_json::from_str(&data).unwrap_or_default();
     groups.retain(|g| g.get("id").and_then(|v| v.as_str()) != Some(&group_id));
     let data = serde_json::to_string_pretty(&groups).map_err(|e| e.to_string())?;
+    std::fs::write(&path, data).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// ── Port Forwarding CRUD ────────────────────────────────
+
+#[tauri::command]
+async fn list_port_forwarding_rules() -> Result<Vec<serde_json::Value>, String> {
+    let storage = ssh_bridge::storage_dir();
+    let path = storage.join("port_forwarding_rules.json");
+    if !path.exists() {
+        return Ok(vec![]);
+    }
+    let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let rules: Vec<serde_json::Value> = serde_json::from_str(&data).map_err(|e| e.to_string())?;
+    Ok(rules)
+}
+
+#[tauri::command]
+async fn save_port_forwarding_rule(rule: serde_json::Value) -> Result<(), String> {
+    let storage = ssh_bridge::storage_dir();
+    std::fs::create_dir_all(&storage).map_err(|e| e.to_string())?;
+    let path = storage.join("port_forwarding_rules.json");
+
+    let mut rules: Vec<serde_json::Value> = if path.exists() {
+        let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&data).unwrap_or_default()
+    } else {
+        vec![]
+    };
+
+    let id = rule.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    if let Some(pos) = rules.iter().position(|r| r.get("id").and_then(|v| v.as_str()) == Some(&id)) {
+        rules[pos] = rule;
+    } else {
+        rules.push(rule);
+    }
+
+    let data = serde_json::to_string_pretty(&rules).map_err(|e| e.to_string())?;
+    std::fs::write(&path, data).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn delete_port_forwarding_rule(id: String) -> Result<(), String> {
+    let storage = ssh_bridge::storage_dir();
+    let path = storage.join("port_forwarding_rules.json");
+    if !path.exists() {
+        return Ok(());
+    }
+    let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let mut rules: Vec<serde_json::Value> = serde_json::from_str(&data).unwrap_or_default();
+    rules.retain(|r| {
+        if let Some(id_val) = r.get("id") {
+            if let Some(id_str) = id_val.as_str() {
+                return id_str != id;
+            }
+        }
+        true
+    });
+    let data = serde_json::to_string_pretty(&rules).map_err(|e| e.to_string())?;
     std::fs::write(&path, data).map_err(|e| e.to_string())?;
     Ok(())
 }

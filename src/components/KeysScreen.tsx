@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useStore, SSHKey } from "../store/useStore";
 import { Key, Trash2, KeyRound, Copy, PlusCircle } from "lucide-react";
+import { ask } from "@tauri-apps/plugin-dialog";
 
 interface KeysScreenProps {
   readonly onAddKey: () => void;
@@ -19,7 +20,11 @@ export default function KeysScreen({ onAddKey }: KeysScreenProps) {
   }, []);
 
   const handleDelete = async (key: SSHKey) => {
-    if (!confirm(`Delete key "${key.name}"?`)) return;
+    const confirmed = await ask(`Delete key "${key.name}"?`, {
+      title: "Confirm Deletion",
+      kind: "warning",
+    });
+    if (!confirmed) return;
     try {
       await invoke("delete_key", { keyId: key.id });
       removeKey(key.id);

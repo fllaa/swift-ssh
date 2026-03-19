@@ -9,18 +9,20 @@ Communication protocol:
 - Each stdout line is a JSON object: {"type":"data","payload":"<base64>"} or {"type":"status","payload":"<msg>"}
 """
 
-import argparse
-import base64
-import json
-import sys
+import os
 import tempfile
+import sys
+import json
+import base64
 import threading
 import time
-import os
 import traceback
-
+import argparse
 import paramiko
 from paramiko.agent import AgentRequestHandler
+import socket
+import socketserver
+import select
 
 
 def log(msg: str):
@@ -39,10 +41,87 @@ def emit_data(raw_bytes: bytes):
 
 def emit_status(msg: str):
     """Write a status message as a JSON line."""
-    line = json.dumps({"type": "status", "payload": msg})
-    sys.stdout.write(line + "\n")
-    sys.stdout.flush()
     log(f"emit_status: {msg}")
+
+
+class ForwardServer(socketserver.ThreadingTCPServer):
+    daemon_threads = True
+    allow_reuse_address = True
+
+
+class Handler(socketserver.BaseRequestHandler):
+    def handle(self):
+        try:
+            chan = self.ssh_transport.open_channel(
+                "direct-tcpip",
+                (self.chain_host, self.chain_port),
+                self.request.getpeername(),
+            )
+        except Exception as e:
+            log(f"Incoming request to {self.chain_host}:{self.chain_port} failed: {e}")
+            return
+
+        if chan is None:
+            log(f"Incoming request to {self.chain_host}:{self.chain_port} was rejected by the SSH server.")
+            return
+
+        log(f"Connected! Tunnel open {self.request.getpeername()} -> {chan.getpeername()} -> {(self.chain_host, self.chain_port)}")
+        while True:
+            r, _, _ = select.select([self.request, chan], [], [])
+            if self.request in r:
+                data = self.request.recv(1024)
+                if len(data) == 0:
+                    break
+                chan.send(data)
+            if chan in r:
+                data = chan.recv(1024)
+                if len(data) == 0:
+                    break
+                self.request.send(data)
+        chan.close()
+        self.request.close()
+        log(f"Tunnel closed from {self.request.getpeername()}")
+
+
+def forward_local_port(local_port, remote_host, remote_port, transport):
+    # This entire class is constructed each time a new connection is made
+    class SubHandler(Handler):
+        chain_host = remote_host
+        chain_port = remote_port
+        ssh_transport = transport
+
+    server = ForwardServer(("", local_port), SubHandler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
+
+def reverse_forward_handler(chan, host, port, transport):
+    log(f"Incoming reverse tunnel request from {host}:{port}")
+    # For reverse forwarding, the "remote" host is actually something on the LOCAL network
+    # usually 127.0.0.1 (the client machine)
+    try:
+        sock = socket.socket()
+        sock.connect((host, port))
+    except Exception as e:
+        log(f"Reverse forward to {host}:{port} failed: {e}")
+        return
+
+    log(f"Connected! Reverse tunnel open {chan.getpeername()} -> {chan.getpeername()} -> {(host, port)}")
+    while True:
+        r, _, _ = select.select([sock, chan], [], [])
+        if sock in r:
+            data = sock.recv(1024)
+            if len(data) == 0:
+                break
+            chan.send(data)
+        if chan in r:
+            data = chan.recv(1024)
+            if len(data) == 0:
+                break
+            sock.send(data)
+    chan.close()
+    sock.close()
+    log(f"Reverse tunnel closed to {host}:{port}")
 
 
 def main():
@@ -50,6 +129,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--host-json", required=True, help="JSON host profile")
+    parser.add_argument("--forwarding-json", default=None, help="JSON forwarding rules")
     parser.add_argument("--session-id", required=True, help="Session ID")
     parser.add_argument("--key-content", default=None, help="Private key content")
     parser.add_argument("--test", action="store_true", help="Test connection only")
@@ -64,7 +144,14 @@ def main():
     password = host.get("password", "")
     agent_forwarding = host.get("agentForwarding", False)
 
-    log(f"connecting to {username}@{hostname}:{port} auth={auth_method} agent_fw={agent_forwarding}")
+    forwarding_rules = []
+    if args.forwarding_json:
+        try:
+            forwarding_rules = json.loads(args.forwarding_json)
+        except Exception as e:
+            log(f"Error parsing forwarding JSON: {e}")
+
+    log(f"connecting to {username}@{hostname}:{port} auth={auth_method} agent_fw={agent_forwarding} tunnels={len(forwarding_rules)}")
 
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -163,6 +250,59 @@ def main():
         channel.settimeout(0.1)
         log("shell channel opened")
 
+        transport = client.get_transport()
+
+        # Start Forwarding Tunnels
+        local_servers = []
+        for rule in forwarding_rules:
+            rtype = rule.get("type", "local")
+            r_local_port = int(rule.get("localPort", 0))
+            r_remote_host = rule.get("remoteHost", "127.0.0.1")
+            r_remote_port = int(rule.get("remotePort", 0))
+
+            if rtype == "local" and r_local_port > 0:
+                try:
+                    server = forward_local_port(r_local_port, r_remote_host, r_remote_port, transport)
+                    local_servers.append(server)
+                    log(f"Local tunnel started: localhost:{r_local_port} -> {r_remote_host}:{r_remote_port}")
+                except Exception as e:
+                    log(f"Failed to start local tunnel {r_local_port}: {e}")
+            elif rtype == "remote" and r_local_port > 0:
+                try:
+                    # In Paramiko, request_port_forward(address, port, handler)
+                    # Note: "localPort" from UI is the port on the REMOTE server in this context
+                    transport.request_port_forward("", r_local_port)
+                    log(f"Remote tunnel requested: remote:{r_local_port} -> local:{r_remote_host}:{r_remote_port}")
+                    
+                    # We need a way to handle incoming reverse channel requests
+                    # Paramiko uses the 'forward-async' handler for this which calls back
+                except Exception as e:
+                    log(f"Failed to request remote tunnel {r_local_port}: {e}")
+
+
+        if any(r.get("type") == "remote" for r in forwarding_rules):
+            # For reverse tunnels, we need to handle incoming channel requests
+            def reverse_listener():
+                while not channel.closed:
+                    new_chan = transport.accept(1)
+                    if new_chan is None:
+                        continue
+                    
+                    # Try to find the rule. Paramiko doesn't give us the destination port here.
+                    # This is a limitation of the high-level accept().
+                    # We'll use the first enabled remote rule as a fallback.
+                    remote_rule = next((r for r in forwarding_rules if r.get("type") == "remote"), None)
+                    if remote_rule:
+                        threading.Thread(
+                            target=reverse_forward_handler,
+                            args=(new_chan, remote_rule['remoteHost'], remote_rule['remotePort'], transport),
+                            daemon=True
+                        ).start()
+                    else:
+                        new_chan.close()
+
+            threading.Thread(target=reverse_listener, daemon=True).start()
+
         if agent_forwarding:
             AgentRequestHandler(channel)
             log("agent forwarding handler started")
@@ -224,6 +364,8 @@ def main():
         emit_status(f"error:{e}")
     finally:
         log("closing client")
+        for s in local_servers:
+            s.shutdown()
         client.close()
 
 

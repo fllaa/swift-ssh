@@ -2,8 +2,9 @@ import { useStore, HostProfile, Group } from "../store/useStore";
 import { v4 as uuidv4 } from "uuid";
 import { invoke } from "@tauri-apps/api/core";
 import { useState, useEffect } from "react";
-import { Search, Plus, Cloud, Layers, Code2, PlusCircle, ChevronRight, Database, Globe, Box, Container, Cpu, HardDrive, Monitor, Edit2, Trash2, Server, ArrowLeft, FolderOpen } from "lucide-react";
+import { Search, Plus, Cloud, Layers, Code2, PlusCircle, ChevronRight, Database, Edit2, Trash2, Server, ArrowLeft, FolderOpen } from "lucide-react";
 import { getDistroIcon } from "../utils/distroIcon";
+import { ask } from "@tauri-apps/plugin-dialog";
 
 interface DashboardProps {
   onEditHost: (host: HostProfile) => void;
@@ -52,7 +53,11 @@ export default function Dashboard({ onEditHost, onAddHost, onAddGroup, onEditGro
   }, []);
 
   const handleDelete = async (host: HostProfile) => {
-    if (!confirm(`Delete host "${host.label || host.hostname}"?`)) return;
+    const confirmed = await ask(`Delete host "${host.label || host.hostname}"?`, {
+      title: "Confirm Deletion",
+      kind: "warning",
+    });
+    if (!confirmed) return;
     try {
       await invoke("delete_host", { host_id: host.id });
       removeHost(host.id);
@@ -61,8 +66,12 @@ export default function Dashboard({ onEditHost, onAddHost, onAddGroup, onEditGro
     }
   };
 
-  const handleDeleteGroup = (group: Group) => {
-    if (!confirm(`Delete group "${group.name}"? Hosts in this group will become ungrouped.`)) return;
+  const handleDeleteGroup = async (group: Group) => {
+    const confirmed = await ask(`Delete group "${group.name}"? Hosts in this group will become ungrouped.`, {
+      title: "Confirm Deletion",
+      kind: "warning",
+    });
+    if (!confirmed) return;
     
     // First, unassign all hosts from this group
     const groupHosts = hosts.filter((h) => h.groupId === group.id);

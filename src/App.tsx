@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useStore, HostProfile, SSHKey, Group } from "./store/useStore";
+import { useStore, HostProfile, SSHKey, Group, PortForwardingRule } from "./store/useStore";
 import Sidebar from "./components/Sidebar";
 import TerminalTab from "./components/TerminalTab";
 import SftpTab from "./components/SftpTab";
@@ -14,6 +14,8 @@ import KeysScreen from "./components/KeysScreen";
 import AddKeyModal from "./components/AddKeyModal";
 import NewTabModal from "./components/NewTabModal";
 import UnlockModal from "./components/UnlockModal";
+import PortForwardingScreen from "./components/PortForwardingScreen";
+import AddPortForwardingModal from "./components/AddPortForwardingModal";
 import {
   Search,
   LayoutGrid,
@@ -50,10 +52,12 @@ export default function App() {
   const [showAddHost, setShowAddHost] = useState(false);
   const [showAddGroup, setShowAddGroup] = useState(false);
   const [showAddKey, setShowAddKey] = useState(false);
+  const [showAddPortForwarding, setShowAddPortForwarding] = useState(false);
   const [showNewActionModal, setShowNewActionModal] = useState(false);
   const [showNewTabModal, setShowNewTabModal] = useState(false);
   const [editHost, setEditHost] = useState<HostProfile | null>(null);
   const [editGroup, setEditGroup] = useState<Group | null>(null);
+  const [editPortForwardingRule, setEditPortForwardingRule] = useState<PortForwardingRule | undefined>(undefined);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [tabContextMenu, setTabContextMenu] = useState<{
     x: number;
@@ -110,6 +114,9 @@ export default function App() {
     invoke<HostProfile[]>("list_hosts").then(setHosts).catch(console.error);
     invoke<SSHKey[]>("list_keys").then(setKeys).catch(console.error);
     invoke<Group[]>("list_groups").then(setGroups).catch(console.error);
+    invoke<PortForwardingRule[]>("list_port_forwarding_rules").then((rules) => {
+      useStore.getState().setPortForwardingRules(rules);
+    }).catch(console.error);
   }, [vaultUnlocked]);
 
   // Listen for SSH disconnect events
@@ -470,6 +477,19 @@ export default function App() {
             {activeTabId === null && sidebarView === "keys" && (
               <KeysScreen onAddKey={() => setShowAddKey(true)} />
             )}
+
+            {activeTabId === null && sidebarView === "port-forwarding" && (
+              <PortForwardingScreen 
+                onAddRule={() => {
+                  setEditPortForwardingRule(undefined);
+                  setShowAddPortForwarding(true);
+                }}
+                onEditRule={(rule) => {
+                  setEditPortForwardingRule(rule);
+                  setShowAddPortForwarding(true);
+                }}
+              />
+            )}
           </div>
         </main>
       </div>
@@ -505,10 +525,22 @@ export default function App() {
             setShowNewActionModal(false);
             setShowAddKey(true);
           }}
+          onAddPortForwarding={() => {
+            setShowNewActionModal(false);
+            setEditPortForwardingRule(undefined);
+            setShowAddPortForwarding(true);
+          }}
         />
       )}
 
       {showAddKey && <AddKeyModal onClose={() => setShowAddKey(false)} />}
+
+      {showAddPortForwarding && (
+        <AddPortForwardingModal 
+          rule={editPortForwardingRule} 
+          onClose={() => setShowAddPortForwarding(false)} 
+        />
+      )}
 
       {showNewTabModal && (
         <NewTabModal

@@ -1,11 +1,9 @@
 import { useStore, HostProfile } from "../store/useStore";
-import HostList from "./HostList";
-import KeyManager from "./KeyManager";
 import { Server, Key, Shuffle, Terminal, ShieldCheck, FileText } from "lucide-react";
 
 interface SidebarProps {
-  onAddHost: () => void;
-  onEditHost: (host: HostProfile) => void;
+  readonly onAddHost: () => void;
+  readonly onEditHost: (host: HostProfile) => void;
 }
 
 
@@ -38,7 +36,14 @@ export default function Sidebar({ onAddHost, onEditHost }: SidebarProps) {
           <Key className="w-4 h-4" />
           <span>Keychain</span>
         </button>
-        <button className="w-full flex items-center space-x-3 px-3 py-2 text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition-all">
+        <button
+          onClick={() => setSidebarView("port-forwarding")}
+          className={`w-full flex items-center space-x-3 px-3 py-2 text-sm font-medium rounded-r-md transition-all ${
+            sidebarView === "port-forwarding"
+              ? "bg-accent-blue/10 text-accent-blue border-l-2 border-accent-blue"
+              : "text-slate-400 hover:text-white hover:bg-slate-800"
+          }`}
+        >
           <Shuffle className="w-4 h-4" />
           <span>Port Forwarding</span>
         </button>

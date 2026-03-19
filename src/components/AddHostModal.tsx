@@ -14,6 +14,7 @@ import {
   Check,
   ChevronsUpDown,
 } from "lucide-react";
+import { message } from "@tauri-apps/plugin-dialog";
 
 interface AddHostModalProps {
   host: HostProfile | null;
@@ -107,7 +108,7 @@ export default function AddHostModal({ host, onClose }: AddHostModalProps) {
       onClose();
     } catch (err) {
       console.error("Save failed:", err);
-      alert(`Save failed: ${err}`);
+      await message(`Save failed: ${err}`, { title: "Error", kind: "error" });
     }
   };
 

@@ -1,11 +1,12 @@
 import { useEffect } from "react";
-import { X, Server, FolderPlus, Key, ChevronRight } from "lucide-react";
+import { X, Server, FolderPlus, Key, ChevronRight, Shuffle } from "lucide-react";
 
 interface NewActionModalProps {
   readonly onClose: () => void;
   readonly onAddHost: () => void;
   readonly onAddGroup: () => void;
   readonly onAddKey: () => void;
+  readonly onAddPortForwarding: () => void;
 }
 
 export default function NewActionModal({
@@ -13,6 +14,7 @@ export default function NewActionModal({
   onAddHost,
   onAddGroup,
   onAddKey,
+  onAddPortForwarding,
 }: NewActionModalProps) {
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -51,6 +53,16 @@ export default function NewActionModal({
       color: "text-amber-400",
       bgColor: "bg-amber-400/10",
       onClick: onAddKey,
+      disabled: false,
+    },
+    {
+      id: "port-forwarding",
+      title: "Add New Port Forwarding",
+      description: "Setup local or remote SSH tunnels",
+      icon: Shuffle,
+      color: "text-purple-400",
+      bgColor: "bg-purple-400/10",
+      onClick: onAddPortForwarding,
       disabled: false,
     },
   ];

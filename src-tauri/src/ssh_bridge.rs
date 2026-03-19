@@ -113,6 +113,21 @@ impl SshBridge {
             }
         }
 
+        let mut rules_json: Option<String> = None;
+        let rules_path = storage.join("port_forwarding_rules.json");
+        if rules_path.exists() {
+            if let Ok(rdata) = std::fs::read_to_string(&rules_path) {
+                if let Ok(rules) = serde_json::from_str::<Vec<Value>>(&rdata) {
+                    let host_rules: Vec<Value> = rules.into_iter()
+                        .filter(|r| r.get("hostId").and_then(|v| v.as_str()) == Some(host_id) && r.get("enabled").and_then(|v| v.as_bool()) == Some(true))
+                        .collect();
+                    if !host_rules.is_empty() {
+                        rules_json = Some(serde_json::to_string(&host_rules).unwrap_or_default());
+                    }
+                }
+            }
+        }
+
         let host_json = serde_json::to_string(&host).map_err(|e| e.to_string())?;
         let (python_bin, script) = sidecar_paths();
         let python_str = python_bin.to_str().unwrap_or("python3");
@@ -131,6 +146,10 @@ impl SshBridge {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .env("PYTHONUNBUFFERED", "1");
+
+        if let Some(ref rj) = rules_json {
+            cmd.arg("--forwarding-json").arg(rj);
+        }
 
         if let Some(ref kc) = key_content {
             cmd.arg("--key-content").arg(kc);

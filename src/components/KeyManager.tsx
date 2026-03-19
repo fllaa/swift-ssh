@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useStore, SSHKey } from "../store/useStore";
+import { ask, message } from "@tauri-apps/plugin-dialog";
 
 export default function KeyManager() {
   const { keys, addKey, removeKey } = useStore();
@@ -21,17 +22,22 @@ export default function KeyManager() {
       setShowAdd(false);
     } catch (err) {
       console.error("Save key failed:", err);
-      alert(`Failed to save key: ${err}`);
+      await message(`Failed to save key: ${err}`, { title: "Error", kind: "error" });
     }
   };
 
   const handleDelete = async (key: SSHKey) => {
-    if (!confirm(`Delete key "${key.name}"?`)) return;
+    const confirmed = await ask(`Delete key "${key.name}"?`, {
+      title: "Confirm Deletion",
+      kind: "warning",
+    });
+    if (!confirmed) return;
     try {
       await invoke("delete_key", { keyId: key.id });
       removeKey(key.id);
     } catch (err) {
       console.error("Delete key failed:", err);
+      await message("Delete key failed: " + err, { title: "Error", kind: "error" });
     }
   };
 

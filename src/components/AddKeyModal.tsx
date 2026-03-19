@@ -2,6 +2,7 @@ import { useState } from "react";
 import { X, Key, Upload } from "lucide-react";
 import { useStore, SSHKey } from "../store/useStore";
 import { invoke } from "@tauri-apps/api/core";
+import { message } from "@tauri-apps/plugin-dialog";
 
 interface AddKeyModalProps {
   readonly onClose: () => void;
@@ -23,7 +24,7 @@ export default function AddKeyModal({ onClose }: AddKeyModalProps) {
       onClose();
     } catch (err) {
       console.error("Save key failed:", err);
-      alert(`Failed to save key: ${err}`);
+      await message(`Failed to save key: ${err}`, { title: "Error", kind: "error" });
     }
   };
 

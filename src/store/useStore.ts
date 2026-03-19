@@ -16,6 +16,17 @@ export interface HostProfile {
   agentForwarding?: boolean;
 }
 
+export interface PortForwardingRule {
+  id: string;
+  label: string;
+  hostId: string;
+  type: "local" | "remote";
+  localPort: number;
+  remoteHost: string; // e.g., "127.0.0.1"
+  remotePort: number;
+  enabled: boolean;
+}
+
 export interface Group {
   id: string;
   name: string;
@@ -77,9 +88,10 @@ interface AppState {
   activeVaultId: string | null;
   tabs: TabSession[];
   activeTabId: string | null;
-  sidebarView: "hosts" | "keys";
+  sidebarView: "hosts" | "keys" | "port-forwarding";
   dashboardViewMode: "grid" | "list";
   transfers: Transfer[];
+  portForwardingRules: PortForwardingRule[];
 
   setHosts: (hosts: HostProfile[]) => void;
   addHost: (host: HostProfile) => void;
@@ -106,13 +118,18 @@ interface AppState {
   markDisconnected: (sessionId: string) => void;
 
   renameTab: (tabId: string, label: string) => void;
-  setSidebarView: (view: "hosts" | "keys") => void;
+  setSidebarView: (view: "hosts" | "keys" | "port-forwarding") => void;
   setDashboardViewMode: (mode: "grid" | "list") => void;
 
   addTransfer: (transfer: Transfer) => void;
   updateTransfer: (id: string, update: Partial<Transfer>) => void;
   removeTransfer: (id: string) => void;
   clearCompletedTransfers: () => void;
+
+  setPortForwardingRules: (rules: PortForwardingRule[]) => void;
+  addPortForwardingRule: (rule: PortForwardingRule) => void;
+  updatePortForwardingRule: (rule: PortForwardingRule) => void;
+  removePortForwardingRule: (id: string) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -126,6 +143,7 @@ export const useStore = create<AppState>((set) => ({
   sidebarView: "hosts",
   dashboardViewMode: "grid",
   transfers: [],
+  portForwardingRules: [],
 
   setHosts: (hosts) => set({ hosts }),
   addHost: (host) => set((s) => ({ hosts: [...s.hosts, host] })),
@@ -194,5 +212,19 @@ export const useStore = create<AppState>((set) => ({
   clearCompletedTransfers: () =>
     set((s) => ({
       transfers: s.transfers.filter((t) => t.status !== "completed" && t.status !== "failed"),
+    })),
+
+  setPortForwardingRules: (rules) => set({ portForwardingRules: rules }),
+  addPortForwardingRule: (rule) =>
+    set((s) => ({ portForwardingRules: [...s.portForwardingRules, rule] })),
+  updatePortForwardingRule: (rule) =>
+    set((s) => ({
+      portForwardingRules: s.portForwardingRules.map((r) =>
+        r.id === rule.id ? rule : r
+      ),
+    })),
+  removePortForwardingRule: (id) =>
+    set((s) => ({
+      portForwardingRules: s.portForwardingRules.filter((r) => r.id !== id),
     })),
 }));
