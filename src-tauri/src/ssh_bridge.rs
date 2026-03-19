@@ -13,6 +13,20 @@ pub fn storage_dir() -> PathBuf {
     base.join("SwiftSSH")
 }
 
+/// Returns the platform-appropriate Python binary name for system fallback.
+fn system_python() -> &'static str {
+    if cfg!(windows) { "python" } else { "python3" }
+}
+
+/// Returns the venv Python path appropriate for the current platform.
+fn venv_python_path(venv_dir: &std::path::Path) -> PathBuf {
+    if cfg!(windows) {
+        venv_dir.join("Scripts").join("python.exe")
+    } else {
+        venv_dir.join("bin").join("python3")
+    }
+}
+
 /// Returns (python_binary, script_path) for a given sidecar script name.
 /// Uses the bundled venv Python so paramiko is always available.
 pub fn sidecar_paths_for(script_name: &str) -> (PathBuf, PathBuf) {
@@ -23,7 +37,7 @@ pub fn sidecar_paths_for(script_name: &str) -> (PathBuf, PathBuf) {
 
     let sidecar_dir = project_root.join("sidecar");
     let script = sidecar_dir.join(script_name);
-    let venv_python = sidecar_dir.join(".venv").join("bin").join("python3");
+    let venv_python = venv_python_path(&sidecar_dir.join(".venv"));
 
     if venv_python.exists() && script.exists() {
         eprintln!("[ssh_bridge] using venv python: {:?}", venv_python);
@@ -35,19 +49,19 @@ pub fn sidecar_paths_for(script_name: &str) -> (PathBuf, PathBuf) {
         let exe_dir = exe.parent().unwrap_or(&PathBuf::from(".")).to_path_buf();
         let prod_sidecar = exe_dir.join("sidecar");
         let prod_script = prod_sidecar.join(script_name);
-        let prod_venv = prod_sidecar.join(".venv").join("bin").join("python3");
+        let prod_venv = venv_python_path(&prod_sidecar.join(".venv"));
         if prod_venv.exists() && prod_script.exists() {
             eprintln!("[ssh_bridge] using prod venv python: {:?}", prod_venv);
             return (prod_venv, prod_script);
         }
         if prod_script.exists() {
-            eprintln!("[ssh_bridge] WARNING: no venv found, using system python3");
-            return (PathBuf::from("python3"), prod_script);
+            eprintln!("[ssh_bridge] WARNING: no venv found, using system {}", system_python());
+            return (PathBuf::from(system_python()), prod_script);
         }
     }
 
     eprintln!("[ssh_bridge] WARNING: using fallback paths");
-    (PathBuf::from("python3"), PathBuf::from(format!("sidecar/{}", script_name)))
+    (PathBuf::from(system_python()), PathBuf::from(format!("sidecar/{}", script_name)))
 }
 
 /// Convenience: returns paths for the SSH terminal sidecar (main.py).
