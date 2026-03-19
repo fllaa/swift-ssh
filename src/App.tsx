@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { platform } from "@tauri-apps/plugin-os";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   useStore,
@@ -76,6 +77,9 @@ export default function App() {
   } | null>(null);
   const [renamingTabId, setRenamingTabId] = useState<string | null>(null);
   const [vaultUnlocked, setVaultUnlocked] = useState(false);
+  const isWindows = useMemo(() => {
+    return platform() === "windows";
+  }, []);
 
   const activeVault = vaults.find((v) => v.id === activeVaultId) || vaults[0];
 
@@ -184,7 +188,7 @@ export default function App() {
     <div className="flex flex-col h-screen w-screen bg-space-dark text-slate-100 font-sans overflow-hidden">
       {/* True Application Title Bar (Overlay) */}
       <div
-        className={`h-10 relative flex items-end pr-4 bg-[#202638] shrink-0 border-b border-slate-800 transition-all duration-300 ${isFullscreen ? "pl-4" : "pl-21"}`}
+        className={`h-10 relative flex items-end pr-4 bg-[#202638] shrink-0 border-b border-slate-800 transition-all duration-300 ${(isWindows || isFullscreen) ? "pl-4" : "pl-21"}`}
       >
         {/* Dedicated Drag Region Background */}
         <div

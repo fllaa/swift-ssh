@@ -12,6 +12,7 @@
     "shell:default",
     "shell:allow-open",
     "dialog:default",
+    "os:default",
     "log:default"
   ]
 }
