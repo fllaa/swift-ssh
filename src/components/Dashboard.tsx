@@ -116,7 +116,8 @@ export default function Dashboard({ onEditHost, onAddHost, onAddGroup, onEditGro
                   <div 
                     key={host.id} 
                     onClick={() => {
-                      addTab({
+                      const tabId = uuidv4();
+                      addTab(tabId, {
                         tabId: uuidv4(),
                         sessionId: null,
                         hostId: host.id,
@@ -163,7 +164,8 @@ export default function Dashboard({ onEditHost, onAddHost, onAddGroup, onEditGro
                   <div
                     key={host.id}
                     onClick={() => {
-                      addTab({
+                      const tabId = uuidv4();
+                      addTab(tabId, {
                         tabId: uuidv4(),
                         sessionId: null,
                         hostId: host.id,
@@ -332,7 +334,8 @@ export default function Dashboard({ onEditHost, onAddHost, onAddGroup, onEditGro
                   <div
                     key={host.id}
                     onClick={() => {
-                      addTab({
+                      const tabId = uuidv4();
+                      addTab(tabId, {
                         tabId: uuidv4(),
                         sessionId: null,
                         hostId: host.id,
@@ -397,7 +400,8 @@ export default function Dashboard({ onEditHost, onAddHost, onAddGroup, onEditGro
                   <div
                     key={host.id}
                     onClick={() => {
-                      addTab({
+                      const tabId = uuidv4();
+                      addTab(tabId, {
                         tabId: uuidv4(),
                         sessionId: null,
                         hostId: host.id,
@@ -493,7 +497,8 @@ export default function Dashboard({ onEditHost, onAddHost, onAddGroup, onEditGro
                 className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 flex items-center gap-2"
                 onClick={() => {
                   const host = contextMenu.host!;
-                  addTab({
+                  const tabId = uuidv4();
+                  addTab(tabId, {
                     tabId: uuidv4(),
                     sessionId: null,
                     hostId: host.id,

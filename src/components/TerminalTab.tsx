@@ -42,6 +42,14 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
     }
   }, [isSidebarOpen]);
 
+  // Auto-focus terminal when dragging ends
+  const isDraggingTabGlobal = useStore((s) => s.isDraggingTab);
+  useEffect(() => {
+    if (!isDraggingTabGlobal && termRef.current) {
+      termRef.current.focus();
+    }
+  }, [isDraggingTabGlobal]);
+
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -248,6 +256,7 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
       <div className="flex-1 min-w-0 relative">
         <div
           ref={containerRef}
+          onClick={() => termRef.current?.focus()}
           className={`w-full h-full p-1 transition-opacity duration-500 ${connecting ? "opacity-0 invisible" : "opacity-100 visible"}`}
           style={{ backgroundColor: "#0f1117" }}
         />

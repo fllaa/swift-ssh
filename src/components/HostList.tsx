@@ -15,8 +15,8 @@ export default function HostList({ onAddHost, onEditHost }: HostListProps) {
     // Create the tab first — TerminalTab will initiate the actual SSH connection
     // after its event listener is registered, avoiding the race condition
     const tabId = uuidv4();
-    addTab({
-      tabId,
+    addTab(tabId, {
+      tabId: uuidv4(),
       sessionId: null,
       hostId: host.id,
       label: host.label || `${host.username}@${host.hostname}`,

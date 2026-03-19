@@ -56,12 +56,28 @@ export interface Snippet {
 }
 
 export interface TabSession {
-  tabId: string; // local tab ID (stable, used for UI)
-  sessionId: string | null; // SSH session ID (set after connect)
+  tabId: string; // unique session ID
+  sessionId: string | null; // SSH session ID from backend
   hostId: string;
   label: string;
   connected: boolean;
   type: "terminal" | "sftp";
+}
+
+export type LayoutNode =
+  | { type: "pane"; sessionId: string } // Note: sessionId here is TabSession.tabId
+  | {
+      type: "split";
+      direction: "horizontal" | "vertical";
+      first: LayoutNode;
+      second: LayoutNode;
+      splitRatio: number; // 0 to 100
+    };
+
+export interface TabGroup {
+  id: string;
+  label: string;
+  layout: LayoutNode;
 }
 
 export interface FileEntry {
@@ -94,8 +110,9 @@ interface AppState {
   groups: Group[];
   vaults: Vault[];
   activeVaultId: string | null;
-  tabs: TabSession[];
-  activeTabId: string | null;
+  tabs: TabGroup[]; // Top-level tabs
+  activeTabId: string | null; // active TabGroup ID
+  sessions: TabSession[]; // All active sessions across all tabs
   sidebarView: "hosts" | "keys" | "port-forwarding" | "snippets";
   dashboardViewMode: "grid" | "list";
   transfers: Transfer[];
@@ -121,12 +138,22 @@ interface AppState {
   addVault: (vault: Vault) => void;
   setActiveVaultId: (id: string) => void;
 
-  addTab: (tab: TabSession) => void;
-  removeTab: (tabId: string) => void;
-  setActiveTab: (tabId: string | null) => void;
+  // Tab management (TabGroups)
+  addTab: (tabId: string, session: TabSession) => void;
+  removeTab: (id: string) => void;
+  removeTabOnly: (id: string) => void;
+  setActiveTab: (id: string | null) => void;
+  activePaneId: string | null;
+  setActivePaneId: (id: string | null) => void;
+  updateTabLayout: (tabId: string, layout: LayoutNode) => void;
+  isDraggingTab: boolean;
+  setIsDraggingTab: (isDragging: boolean) => void;
+  
+  // Session management
+  addSession: (session: TabSession) => void;
+  removeSession: (tabId: string) => void;
   setTabSessionId: (tabId: string, sessionId: string) => void;
   markDisconnected: (sessionId: string) => void;
-
   renameTab: (tabId: string, label: string) => void;
   setSidebarView: (
     view: "hosts" | "keys" | "port-forwarding" | "snippets",
@@ -159,12 +186,14 @@ export const useStore = create<AppState>((set) => ({
   activeVaultId: "v1",
   tabs: [],
   activeTabId: null,
+  sessions: [],
   sidebarView: "hosts",
   dashboardViewMode: "grid",
   transfers: [],
   portForwardingRules: [],
   forwardingSessions: {},
   snippets: [],
+  isDraggingTab: false,
 
   setHosts: (hosts) => set({ hosts }),
   addHost: (host) => set((s) => ({ hosts: [...s.hosts, host] })),
@@ -190,38 +219,105 @@ export const useStore = create<AppState>((set) => ({
   addVault: (vault) => set((s) => ({ vaults: [...s.vaults, vault] })),
   setActiveVaultId: (id) => set({ activeVaultId: id }),
 
-  addTab: (tab) =>
-    set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tab.tabId })),
-  removeTab: (tabId) =>
+  // Tab & Session management
+  addTab: (tabId, session) =>
+    set((s) => ({
+      sessions: [...s.sessions, session],
+      tabs: [
+        ...s.tabs,
+        {
+          id: tabId,
+          label: session.label,
+          layout: { type: "pane", sessionId: session.tabId },
+        },
+      ],
+      activeTabId: tabId,
+    })),
+
+  removeTab: (id) =>
     set((s) => {
-      const newTabs = s.tabs.filter((t) => t.tabId !== tabId);
+      const tab = s.tabs.find((t) => t.id === id);
+      if (!tab) return s;
+
+      // Find all sessions in this tab's layout
+      const getSessionIds = (node: LayoutNode): string[] => {
+        if (node.type === "pane") return [node.sessionId];
+        return [...getSessionIds(node.first), ...getSessionIds(node.second)];
+      };
+      const sessionIds = getSessionIds(tab.layout);
+
+      const newTabs = s.tabs.filter((t) => t.id !== id);
+      const newSessions = s.sessions.filter(
+        (sess) => !sessionIds.includes(sess.tabId),
+      );
+
       let nextActiveTabId = s.activeTabId;
-      if (s.activeTabId === tabId) {
+      if (s.activeTabId === id) {
         nextActiveTabId =
-          newTabs.length > 0 ? newTabs[newTabs.length - 1].tabId : null;
+          newTabs.length > 0 ? newTabs[newTabs.length - 1].id : null;
+      }
+      return {
+        tabs: newTabs,
+        sessions: newSessions,
+        activeTabId: nextActiveTabId,
+      };
+    }),
+
+  removeTabOnly: (id) =>
+    set((s) => {
+      const newTabs = s.tabs.filter((t) => t.id !== id);
+      let nextActiveTabId = s.activeTabId;
+      if (s.activeTabId === id) {
+        nextActiveTabId = newTabs.length > 0 ? newTabs[newTabs.length - 1].id : null;
       }
       return {
         tabs: newTabs,
         activeTabId: nextActiveTabId,
       };
     }),
+
   setActiveTab: (tabId) => set({ activeTabId: tabId }),
+  
+  activePaneId: null,
+  setActivePaneId: (id) => set({ activePaneId: id }),
+  
+  updateTabLayout: (tabId, layout) =>
+    set((s) => ({
+      tabs: s.tabs.map((t) => (t.id === tabId ? { ...t, layout } : t)),
+    })),
+
+  addSession: (session) =>
+    set((s) => ({ sessions: [...s.sessions, session] })),
+
+  removeSession: (tabId) =>
+    set((s) => ({ sessions: s.sessions.filter((sess) => sess.tabId !== tabId) })),
+
   setTabSessionId: (tabId, sessionId) =>
     set((s) => ({
-      tabs: s.tabs.map((t) =>
-        t.tabId === tabId ? { ...t, sessionId, connected: true } : t,
+      sessions: s.sessions.map((sess) =>
+        sess.tabId === tabId ? { ...sess, sessionId, connected: true } : sess,
       ),
     })),
+
   markDisconnected: (sessionId) =>
     set((s) => ({
-      tabs: s.tabs.map((t) =>
-        t.sessionId === sessionId ? { ...t, connected: false } : t,
+      sessions: s.sessions.map((sess) =>
+        sess.sessionId === sessionId ? { ...sess, connected: false } : sess,
       ),
     })),
 
   renameTab: (tabId, label) =>
     set((s) => ({
-      tabs: s.tabs.map((t) => (t.tabId === tabId ? { ...t, label } : t)),
+      sessions: s.sessions.map((sess) =>
+        sess.tabId === tabId ? { ...sess, label } : sess,
+      ),
+      tabs: s.tabs.map((t) => {
+        // Find if this session is the primary one for the tab label?
+        // For now, if a tab has multiple panes, renaming might be individual sessions.
+        // But for backward compatibility, if session.tabId matches tab.id, rename tab too.
+        if (t.id === tabId) return { ...t, label };
+        return t;
+      }),
     })),
   setSidebarView: (view) => set({ sidebarView: view }),
   setDashboardViewMode: (mode) => set({ dashboardViewMode: mode }),
@@ -277,4 +373,24 @@ export const useStore = create<AppState>((set) => ({
     })),
   removeSnippet: (id) =>
     set((s) => ({ snippets: s.snippets.filter((snip) => snip.id !== id) })),
+  setIsDraggingTab: (isDragging) => set({ isDraggingTab: isDragging }),
 }));
+
+// Helper to remove a sessionId from a layout and return the new layout
+// or null if the layout becomes empty
+export const removeFromLayout = (
+  node: LayoutNode,
+  sessionId: string,
+): LayoutNode | null => {
+  if (node.type === "pane") {
+    return node.sessionId === sessionId ? null : node;
+  }
+
+  const newFirst = removeFromLayout(node.first, sessionId);
+  const newSecond = removeFromLayout(node.second, sessionId);
+
+  if (!newFirst) return newSecond;
+  if (!newSecond) return newFirst;
+
+  return { ...node, first: newFirst, second: newSecond };
+};

@@ -2,10 +2,27 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useStore, HostProfile, SSHKey, Group, PortForwardingRule } from "./store/useStore";
+import {
+  useStore,
+  HostProfile,
+  SSHKey,
+  Group,
+  PortForwardingRule,
+} from "./store/useStore";
+import {
+  ChevronDown,
+  Plus,
+  Server,
+  Search,
+  FolderOpen,
+  Cloud,
+  X,
+  Copy,
+  LayoutGrid,
+  List,
+  Type,
+} from "lucide-react";
 import Sidebar from "./components/Sidebar";
-import TerminalTab from "./components/TerminalTab";
-import SftpTab from "./components/SftpTab";
 import AddHostModal from "./components/AddHostModal";
 import AddGroupModal from "./components/AddGroupModal";
 import Dashboard from "./components/Dashboard";
@@ -17,24 +34,13 @@ import UnlockModal from "./components/UnlockModal";
 import PortForwardingScreen from "./components/PortForwardingScreen";
 import AddPortForwardingModal from "./components/AddPortForwardingModal";
 import SnippetsScreen from "./components/SnippetsScreen";
-import {
-  Search,
-  LayoutGrid,
-  List,
-  Plus,
-  Cloud,
-  ChevronDown,
-  Server,
-  FolderOpen,
-  Copy,
-  Type,
-  X,
-} from "lucide-react";
+import LayoutRenderer from "./components/LayoutRenderer";
 import { v4 as uuidv4 } from "uuid";
 
 export default function App() {
   const {
     tabs,
+    sessions,
     activeTabId,
     setHosts,
     setKeys,
@@ -49,6 +55,7 @@ export default function App() {
     setDashboardViewMode,
     setGroups,
     sidebarView,
+    setIsDraggingTab,
   } = useStore();
   const [showAddHost, setShowAddHost] = useState(false);
   const [showAddGroup, setShowAddGroup] = useState(false);
@@ -58,7 +65,9 @@ export default function App() {
   const [showNewTabModal, setShowNewTabModal] = useState(false);
   const [editHost, setEditHost] = useState<HostProfile | null>(null);
   const [editGroup, setEditGroup] = useState<Group | null>(null);
-  const [editPortForwardingRule, setEditPortForwardingRule] = useState<PortForwardingRule | undefined>(undefined);
+  const [editPortForwardingRule, setEditPortForwardingRule] = useState<
+    PortForwardingRule | undefined
+  >(undefined);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [tabContextMenu, setTabContextMenu] = useState<{
     x: number;
@@ -115,12 +124,16 @@ export default function App() {
     invoke<HostProfile[]>("list_hosts").then(setHosts).catch(console.error);
     invoke<SSHKey[]>("list_keys").then(setKeys).catch(console.error);
     invoke<Group[]>("list_groups").then(setGroups).catch(console.error);
-    invoke<PortForwardingRule[]>("list_port_forwarding_rules").then((rules) => {
-      useStore.getState().setPortForwardingRules(rules);
-    }).catch(console.error);
-    invoke<any[]>("list_snippets").then((snippets) => {
-      useStore.getState().setSnippets(snippets);
-    }).catch(console.error);
+    invoke<PortForwardingRule[]>("list_port_forwarding_rules")
+      .then((rules) => {
+        useStore.getState().setPortForwardingRules(rules);
+      })
+      .catch(console.error);
+    invoke<any[]>("list_snippets")
+      .then((snippets) => {
+        useStore.getState().setSnippets(snippets);
+      })
+      .catch(console.error);
   }, [vaultUnlocked]);
 
   // Listen for SSH disconnect events
@@ -130,19 +143,36 @@ export default function App() {
       (event) => {
         const sid = event.payload.sessionId;
         markDisconnected(sid);
-        
+
         // Also cleanup forwarder state if this was a background tunnel
         const state = useStore.getState();
         const hostId = Object.keys(state.forwardingSessions).find(
-          (h) => state.forwardingSessions[h] === sid
+          (h) => state.forwardingSessions[h] === sid,
         );
         if (hostId) {
           state.removeForwardingSession(hostId);
         }
       },
     );
+    const handleGlobalReset = () => {
+      if (useStore.getState().isDraggingTab) {
+        setIsDraggingTab(false);
+      }
+    };
+
+    const handleKeyDownGlobal = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleGlobalReset();
+    };
+
+    globalThis.addEventListener("dragend", handleGlobalReset);
+    globalThis.addEventListener("click", handleGlobalReset);
+    globalThis.addEventListener("keydown", handleKeyDownGlobal);
+
     return () => {
       unlistenDisconnect.then((fn) => fn());
+      globalThis.removeEventListener("dragend", handleGlobalReset);
+      globalThis.removeEventListener("click", handleGlobalReset);
+      globalThis.removeEventListener("keydown", handleKeyDownGlobal);
     };
   }, []);
 
@@ -202,24 +232,49 @@ export default function App() {
             className="flex items-end space-x-1 px-4 overflow-x-auto no-scrollbar h-full"
           >
             {tabs.map((tab) => {
-              const isActive = tab.tabId === activeTabId;
+              const isActive = tab.id === activeTabId;
+
+              // Helper to get first session ID from layout
+              const getFirstSessionId = (node: any): string => {
+                if (node.type === "pane") return node.sessionId;
+                return getFirstSessionId(node.first);
+              };
+              // Helper to get all session IDs from layout
+              const countSessions = (node: any): number => {
+                if (node.type === "pane") return 1;
+                return countSessions(node.first) + countSessions(node.second);
+              };
+
+              const sessionId = getFirstSessionId(tab.layout);
+              const sessionCount = countSessions(tab.layout);
+              const mainSession = sessions.find((s) => s.tabId === sessionId);
+
               let statusColor = "text-slate-500";
-              if (isActive) {
-                statusColor = tab.connected
+              if (isActive && mainSession) {
+                statusColor = mainSession.connected
                   ? "text-green-500"
                   : "text-orange-400";
               }
 
               return (
                 <div
-                  key={tab.tabId}
-                  onClick={() => setActiveTab(tab.tabId)}
+                  key={tab.id}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("tabId", tab.id);
+                    e.dataTransfer.effectAllowed = "move";
+                    setIsDraggingTab(true);
+                  }}
+                  onDragEnd={() => {
+                    setIsDraggingTab(false);
+                  }}
+                  onClick={() => setActiveTab(tab.id)}
                   onContextMenu={(e) => {
                     e.preventDefault();
                     setTabContextMenu({
                       x: e.clientX,
                       y: e.clientY,
-                      tabId: tab.tabId,
+                      tabId: tab.id,
                     });
                   }}
                   className={`group relative flex items-center gap-2 px-5 cursor-pointer text-sm font-medium transition-all duration-200 ${
@@ -229,12 +284,19 @@ export default function App() {
                   }`}
                   style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
                 >
-                  {tab.type === "sftp" ? (
+                  {sessionCount > 1 ? (
+                    <div className="relative">
+                      <LayoutGrid className={`w-3.5 h-3.5 ${statusColor}`} />
+                      <div className="absolute -top-1.5 -right-1.5 bg-blue-500 text-[8px] text-white w-3 h-3 flex items-center justify-center rounded-full border border-[#1a1f2e] font-bold">
+                        {sessionCount}
+                      </div>
+                    </div>
+                  ) : mainSession?.type === "sftp" ? (
                     <FolderOpen className={`w-3.5 h-3.5 ${statusColor}`} />
                   ) : (
                     <Server className={`w-3.5 h-3.5 ${statusColor}`} />
                   )}
-                  {renamingTabId === tab.tabId ? (
+                  {renamingTabId === tab.id ? (
                     <input
                       autoFocus
                       onFocus={(e) => e.target.select()}
@@ -242,13 +304,13 @@ export default function App() {
                       defaultValue={tab.label}
                       onBlur={(e) => {
                         const val = e.target.value.trim();
-                        if (val) renameTab(tab.tabId, val);
+                        if (val) renameTab(tab.id, val);
                         setRenamingTabId(null);
                       }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           const val = e.currentTarget.value.trim();
-                          if (val) renameTab(tab.tabId, val);
+                          if (val) renameTab(tab.id, val);
                           setRenamingTabId(null);
                         } else if (e.key === "Escape") {
                           setRenamingTabId(null);
@@ -257,21 +319,14 @@ export default function App() {
                       onClick={(e) => e.stopPropagation()}
                     />
                   ) : (
-                    <span className="truncate max-w-40">{tab.label}</span>
+                    <span className="truncate max-w-40">
+                      {sessionCount > 1 ? "Workspace" : tab.label}
+                    </span>
                   )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (tab.sessionId) {
-                        const cmd =
-                          tab.type === "sftp"
-                            ? "disconnect_sftp"
-                            : "disconnect_host";
-                        invoke(cmd, { sessionId: tab.sessionId }).catch(
-                          () => {},
-                        );
-                      }
-                      removeTab(tab.tabId);
+                      removeTab(tab.id);
                     }}
                     className={`ml-1 transition-opacity duration-200 ${isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"} text-slate-500 hover:text-white`}
                   >
@@ -299,43 +354,39 @@ export default function App() {
             style={{ top: tabContextMenu.y, left: tabContextMenu.x }}
             onClick={(e) => e.stopPropagation()}
           >
+            {" "}
             <button
               className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-blue-600/20 hover:text-blue-400 flex items-center gap-3 transition-colors"
               onClick={() => {
                 const sourceTab = tabs.find(
-                  (t) => t.tabId === tabContextMenu.tabId,
+                  (t) => t.id === tabContextMenu.tabId,
                 );
                 if (sourceTab) {
-                  // Get the base label (remove existing (n) if present)
-                  const labelRegex = /^(.*?) \((\d+)\)$/;
-                  const match = labelRegex.exec(sourceTab.label);
-                  const baseLabel = match ? match[1] : sourceTab.label;
+                  // Helper to get all session IDs from layout
+                  const getSessionIds = (node: any): string[] => {
+                    if (node.type === "pane") return [node.sessionId];
+                    return [
+                      ...getSessionIds(node.first),
+                      ...getSessionIds(node.second),
+                    ];
+                  };
+                  const sessionIds = getSessionIds(sourceTab.layout);
 
-                  // Find the highest n for this baseLabel
-                  let maxN = 0;
-                  const escapedBase = baseLabel.replaceAll(
-                    /[.*+?^${}()|[\]\\]/g,
-                    String.raw`\$&`,
+                  // For simplicity, duplicate only the first session into a new tab
+                  const sourceSession = sessions.find(
+                    (s) => s.tabId === sessionIds[0],
                   );
-                  const tabRegex = new RegExp(
-                    String.raw`^${escapedBase} \((\d+)\)$`,
-                  );
 
-                  tabs.forEach((t) => {
-                    const tMatch = tabRegex.exec(t.label);
-                    if (tMatch) {
-                      const n = Number.parseInt(tMatch[1], 10);
-                      if (n > maxN) maxN = n;
-                    }
-                  });
-
-                  addTab({
-                    ...sourceTab,
-                    tabId: uuidv4(),
-                    sessionId: null,
-                    connected: false,
-                    label: `${baseLabel} (${maxN + 1})`,
-                  });
+                  if (sourceSession) {
+                    const newSessionId = uuidv4();
+                    addTab(uuidv4(), {
+                      ...sourceSession,
+                      tabId: newSessionId,
+                      sessionId: null,
+                      connected: false,
+                      label: `${sourceSession.label} (Copy)`,
+                    });
+                  }
                 }
                 setTabContextMenu(null);
               }}
@@ -357,17 +408,7 @@ export default function App() {
             <button
               className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-3 transition-colors"
               onClick={() => {
-                const tab = tabs.find((t) => t.tabId === tabContextMenu.tabId);
-                if (tab) {
-                  if (tab.sessionId) {
-                    const cmd =
-                      tab.type === "sftp"
-                        ? "disconnect_sftp"
-                        : "disconnect_host";
-                    invoke(cmd, { sessionId: tab.sessionId }).catch(() => {});
-                  }
-                  removeTab(tab.tabId);
-                }
+                removeTab(tabContextMenu.tabId);
                 setTabContextMenu(null);
               }}
             >
@@ -433,37 +474,23 @@ export default function App() {
               </div>
             </header>
           )}
-
           {/* Terminal area */}
           <div className="flex-1 relative overflow-hidden">
-            {tabs.map((tab) => (
+            {tabs.map((tabGroup) => (
               <div
-                key={tab.tabId}
+                key={tabGroup.id}
                 className={`absolute inset-0 ${
-                  tab.tabId === activeTabId ? "block" : "hidden"
+                  tabGroup.id === activeTabId ? "block" : "hidden"
                 }`}
               >
-                {tab.type === "sftp" ? (
-                  <SftpTab tabId={tab.tabId} hostId={tab.hostId} />
-                ) : (
-                  <TerminalTab
-                    tabId={tab.tabId}
-                    hostId={tab.hostId}
-                    onEditHost={(host) => {
-                      setEditHost(host);
-                      setShowAddHost(true);
-                    }}
-                    onClose={() => {
-                      const t = tabs.find((x) => x.tabId === tab.tabId);
-                      if (t?.sessionId) {
-                        invoke("disconnect_host", {
-                          sessionId: t.sessionId,
-                        }).catch(() => {});
-                      }
-                      removeTab(tab.tabId);
-                    }}
-                  />
-                )}
+                <LayoutRenderer
+                  tabGroupId={tabGroup.id}
+                  node={tabGroup.layout}
+                  onEditHost={(host) => {
+                    setEditHost(host);
+                    setShowAddHost(true);
+                  }}
+                />
               </div>
             ))}
 
@@ -493,7 +520,7 @@ export default function App() {
             )}
 
             {activeTabId === null && sidebarView === "port-forwarding" && (
-              <PortForwardingScreen 
+              <PortForwardingScreen
                 onAddRule={() => {
                   setEditPortForwardingRule(undefined);
                   setShowAddPortForwarding(true);
@@ -554,9 +581,9 @@ export default function App() {
       {showAddKey && <AddKeyModal onClose={() => setShowAddKey(false)} />}
 
       {showAddPortForwarding && (
-        <AddPortForwardingModal 
-          rule={editPortForwardingRule} 
-          onClose={() => setShowAddPortForwarding(false)} 
+        <AddPortForwardingModal
+          rule={editPortForwardingRule}
+          onClose={() => setShowAddPortForwarding(false)}
         />
       )}
 
@@ -564,8 +591,9 @@ export default function App() {
         <NewTabModal
           onClose={() => setShowNewTabModal(false)}
           onConnect={(host) => {
-            addTab({
-              tabId: uuidv4(),
+            const tabId = uuidv4();
+            addTab(tabId, {
+              tabId: uuidv4(), // session ID
               sessionId: null,
               hostId: host.id,
               label: host.label || host.hostname,
