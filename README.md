@@ -351,7 +351,7 @@ The Rust backend couldn't find or execute `python3`. Make sure:
 - [x] SFTP file browser / transfer
 - [x] Encrypted storage for passwords and keys (OS keychain integration)
 - [x] SSH agent forwarding
-- [ ] Port forwarding (local/remote tunnels)
+- [x] Port forwarding (local/remote tunnels)
 - [ ] Snippet / command library
 - [ ] Multi-hop / jump host support
 - [ ] Session logging / export

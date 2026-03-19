@@ -92,6 +92,7 @@ interface AppState {
   dashboardViewMode: "grid" | "list";
   transfers: Transfer[];
   portForwardingRules: PortForwardingRule[];
+  forwardingSessions: Record<string, string>; // hostId -> sessionId
 
   setHosts: (hosts: HostProfile[]) => void;
   addHost: (host: HostProfile) => void;
@@ -130,6 +131,8 @@ interface AppState {
   addPortForwardingRule: (rule: PortForwardingRule) => void;
   updatePortForwardingRule: (rule: PortForwardingRule) => void;
   removePortForwardingRule: (id: string) => void;
+  setForwardingSession: (hostId: string, sessionId: string) => void;
+  removeForwardingSession: (hostId: string) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -144,6 +147,7 @@ export const useStore = create<AppState>((set) => ({
   dashboardViewMode: "grid",
   transfers: [],
   portForwardingRules: [],
+  forwardingSessions: {},
 
   setHosts: (hosts) => set({ hosts }),
   addHost: (host) => set((s) => ({ hosts: [...s.hosts, host] })),
@@ -227,4 +231,14 @@ export const useStore = create<AppState>((set) => ({
     set((s) => ({
       portForwardingRules: s.portForwardingRules.filter((r) => r.id !== id),
     })),
+  setForwardingSession: (hostId, sessionId) =>
+    set((s) => ({
+      forwardingSessions: { ...s.forwardingSessions, [hostId]: sessionId },
+    })),
+  removeForwardingSession: (hostId) =>
+    set((s) => {
+      const next = { ...s.forwardingSessions };
+      delete next[hostId];
+      return { forwardingSessions: next };
+    }),
 }));

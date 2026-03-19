@@ -96,9 +96,7 @@ def forward_local_port(local_port, remote_host, remote_port, transport):
 
 
 def reverse_forward_handler(chan, host, port, transport):
-    log(f"Incoming reverse tunnel request from {host}:{port}")
-    # For reverse forwarding, the "remote" host is actually something on the LOCAL network
-    # usually 127.0.0.1 (the client machine)
+    log(f"Incoming reverse tunnel request to {host}:{port}")
     try:
         sock = socket.socket()
         sock.connect((host, port))
@@ -108,17 +106,21 @@ def reverse_forward_handler(chan, host, port, transport):
 
     log(f"Connected! Reverse tunnel open {chan.getpeername()} -> {chan.getpeername()} -> {(host, port)}")
     while True:
-        r, _, _ = select.select([sock, chan], [], [])
-        if sock in r:
-            data = sock.recv(1024)
-            if len(data) == 0:
-                break
-            chan.send(data)
-        if chan in r:
-            data = chan.recv(1024)
-            if len(data) == 0:
-                break
-            sock.send(data)
+        try:
+            r, _, _ = select.select([sock, chan], [], [], 1.0)
+            if not r:
+                if not transport.is_active(): break
+                continue
+            if sock in r:
+                data = sock.recv(1024)
+                if len(data) == 0: break
+                chan.send(data)
+            if chan in r:
+                data = chan.recv(1024)
+                if len(data) == 0: break
+                sock.send(data)
+        except Exception:
+            break
     chan.close()
     sock.close()
     log(f"Reverse tunnel closed to {host}:{port}")
@@ -134,6 +136,7 @@ def main():
     parser.add_argument("--key-content", default=None, help="Private key content")
     parser.add_argument("--test", action="store_true", help="Test connection only")
     parser.add_argument("--detect-distro", action="store_true", help="Detect OS distro only")
+    parser.add_argument("--no-shell", action="store_true", help="Start forwarding only, no interactive shell")
     args = parser.parse_args()
 
     host = json.loads(args.host_json)
@@ -246,52 +249,91 @@ def main():
             client.close()
             sys.exit(0)
 
-        channel = client.invoke_shell(term="xterm-256color", width=120, height=40)
-        channel.settimeout(0.1)
-        log("shell channel opened")
+        channel = None
+        if not args.no_shell:
+            channel = client.invoke_shell(term="xterm-256color", width=120, height=40)
+            channel.settimeout(0.1)
+            log("shell channel opened")
+        else:
+            log("no-shell mode: skipping shell initialization")
 
         transport = client.get_transport()
 
-        # Start Forwarding Tunnels
-        local_servers = []
-        for rule in forwarding_rules:
-            rtype = rule.get("type", "local")
-            r_local_port = int(rule.get("localPort", 0))
-            r_remote_host = rule.get("remoteHost", "127.0.0.1")
-            r_remote_port = int(rule.get("remotePort", 0))
+        # State for live updates
+        active_local_servers = {} # rule_id -> server_obj
+        active_remote_ports = set() # set of remote_port numbers
+        current_forwarding_rules = []
 
-            if rtype == "local" and r_local_port > 0:
+        def apply_forwarding_rules(rules):
+            nonlocal current_forwarding_rules
+            log(f"Applying {len(rules)} forwarding rules")
+            
+            # 1. Handle Local Forwarding (L)
+            new_local_rule_ids = {r['id'] for r in rules if r.get('type') == 'local' and r.get('enabled')}
+            
+            # Shutdown removed or disabled local servers
+            to_stop = [rid for rid in active_local_servers if rid not in new_local_rule_ids]
+            for rid in to_stop:
+                log(f"Stopping local tunnel for rule {rid}")
+                active_local_servers[rid].shutdown()
+                del active_local_servers[rid]
+            
+            # Start new local servers
+            for rule in rules:
+                rid = rule['id']
+                if rule.get('type') == 'local' and rule.get('enabled') and rid not in active_local_servers:
+                    lport = int(rule.get('localPort', 0))
+                    rhost = rule.get('remoteHost', '127.0.0.1')
+                    rport = int(rule.get('remotePort', 0))
+                    if lport > 0:
+                        try:
+                            srv = forward_local_port(lport, rhost, rport, transport)
+                            active_local_servers[rid] = srv
+                            log(f"Started local tunnel {rid}: localhost:{lport} -> {rhost}:{rport}")
+                        except Exception as e:
+                            log(f"Failed to start local tunnel {rid}: {e}")
+
+            # 2. Handle Remote Forwarding (R)
+            new_remote_rules = [r for r in rules if r.get('type') == 'remote' and r.get('enabled')]
+            new_remote_ports = {int(r['localPort']) for r in new_remote_rules if int(r.get('localPort', 0)) > 0}
+            
+            # Cancel removed remote forwards
+            to_cancel = active_remote_ports - new_remote_ports
+            for port in to_cancel:
+                log(f"Cancelling remote forward on port {port}")
                 try:
-                    server = forward_local_port(r_local_port, r_remote_host, r_remote_port, transport)
-                    local_servers.append(server)
-                    log(f"Local tunnel started: localhost:{r_local_port} -> {r_remote_host}:{r_remote_port}")
+                    transport.cancel_port_forward("", port)
                 except Exception as e:
-                    log(f"Failed to start local tunnel {r_local_port}: {e}")
-            elif rtype == "remote" and r_local_port > 0:
+                    log(f"Error cancelling port forward {port}: {e}")
+            
+            # Request new remote forwards
+            for rule in new_remote_rules:
+                port = int(rule['localPort'])
+                if port not in active_remote_ports:
+                    log(f"Requesting remote forward on port {port}")
+                    try:
+                        transport.request_port_forward("", port)
+                        active_remote_ports.add(port)
+                    except Exception as e:
+                        log(f"Error requesting port forward {port}: {e}")
+            
+            active_remote_ports.intersection_update(new_remote_ports)
+            current_forwarding_rules[:] = rules
+
+        # Initial apply
+        apply_forwarding_rules(forwarding_rules)
+
+        def reverse_listener_loop():
+            while transport.is_active():
                 try:
-                    # In Paramiko, request_port_forward(address, port, handler)
-                    # Note: "localPort" from UI is the port on the REMOTE server in this context
-                    transport.request_port_forward("", r_local_port)
-                    log(f"Remote tunnel requested: remote:{r_local_port} -> local:{r_remote_host}:{r_remote_port}")
-                    
-                    # We need a way to handle incoming reverse channel requests
-                    # Paramiko uses the 'forward-async' handler for this which calls back
-                except Exception as e:
-                    log(f"Failed to request remote tunnel {r_local_port}: {e}")
-
-
-        if any(r.get("type") == "remote" for r in forwarding_rules):
-            # For reverse tunnels, we need to handle incoming channel requests
-            def reverse_listener():
-                while not channel.closed:
                     new_chan = transport.accept(1)
-                    if new_chan is None:
-                        continue
+                    if new_chan is None: continue
                     
-                    # Try to find the rule. Paramiko doesn't give us the destination port here.
-                    # This is a limitation of the high-level accept().
-                    # We'll use the first enabled remote rule as a fallback.
-                    remote_rule = next((r for r in forwarding_rules if r.get("type") == "remote"), None)
+                    # Match incoming request to a rule
+                    # Paramiko accept() doesn't easily tell us WHICH port was hit.
+                    # We look at get_name() if available, but usually we just use the first match
+                    # simple heuristic: use the first enabled remote rule
+                    remote_rule = next((r for r in current_forwarding_rules if r.get("type") == "remote" and r.get("enabled")), None)
                     if remote_rule:
                         threading.Thread(
                             target=reverse_forward_handler,
@@ -300,45 +342,54 @@ def main():
                         ).start()
                     else:
                         new_chan.close()
+                except Exception:
+                    break
 
-            threading.Thread(target=reverse_listener, daemon=True).start()
+        threading.Thread(target=reverse_listener_loop, daemon=True).start()
 
-        if agent_forwarding:
+        if agent_forwarding and channel:
             AgentRequestHandler(channel)
             log("agent forwarding handler started")
 
-        # Thread: read from SSH channel → stdout as base64 JSON lines
-        def read_channel():
-            log("read_channel thread started")
-            while not channel.closed:
-                try:
-                    if channel.recv_ready():
-                        data = channel.recv(4096)
-                        if data:
-                            emit_data(data)
-                    else:
-                        time.sleep(0.02)
-                except Exception as e:
-                    log(f"read_channel exception: {e}")
-                    break
-            log("read_channel ended")
-            emit_status("disconnected")
-            sys.exit(0)
-
-        reader_thread = threading.Thread(target=read_channel, daemon=True)
-        reader_thread.start()
+        if not args.no_shell:
+            def read_channel():
+                while not channel.closed:
+                    try:
+                        if channel.recv_ready():
+                            data = channel.recv(4096)
+                            if data: emit_data(data)
+                        else:
+                            time.sleep(0.02)
+                    except Exception: break
+                emit_status("disconnected")
+                sys.exit(0)
+            threading.Thread(target=read_channel, daemon=True).start()
 
         log("waiting for stdin input...")
-        # Main thread: read raw bytes from stdin → send to SSH channel
         for line in sys.stdin:
-            if channel.closed:
-                log("channel closed, breaking stdin loop")
+            line = line.strip()
+            if not line: continue
+            
+            if line.startswith("{"):
+                try:
+                    msg = json.loads(line)
+                    if msg.get("type") == "update_forwarding":
+                        apply_forwarding_rules(msg.get("rules", []))
+                    continue
+                except Exception as e:
+                    log(f"JSON control error: {e}")
+            
+            if channel and not channel.closed:
+                try:
+                    raw = base64.b64decode(line)
+                    channel.send(raw)
+                except Exception as e:
+                    log(f"stdin decode/send error: {e}")
+            elif args.no_shell:
+                # In no-shell mode, we just ignore non-JSON stdin
+                pass
+            else:
                 break
-            try:
-                raw = base64.b64decode(line.strip())
-                channel.send(raw)
-            except Exception as e:
-                log(f"stdin decode/send error: {e}")
 
     except paramiko.AuthenticationException:
         log("Authentication failed")

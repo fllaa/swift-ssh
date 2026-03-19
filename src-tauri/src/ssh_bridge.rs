@@ -58,6 +58,7 @@ pub fn sidecar_paths() -> (PathBuf, PathBuf) {
 struct Session {
     process: Child,
     stdin: ChildStdin,
+    host_id: String,
 }
 
 pub struct SshBridge {
@@ -73,7 +74,7 @@ impl SshBridge {
         }
     }
 
-    pub async fn connect(&mut self, host_id: &str, enc_key: Option<&[u8; 32]>) -> Result<String, String> {
+    pub async fn connect(&mut self, host_id: &str, enc_key: Option<&[u8; 32]>, no_shell: bool) -> Result<String, String> {
         eprintln!("[ssh_bridge] connect: host_id={}", host_id);
 
         let storage = storage_dir();
@@ -150,6 +151,10 @@ impl SshBridge {
         if let Some(ref rj) = rules_json {
             cmd.arg("--forwarding-json").arg(rj);
         }
+        
+        if no_shell {
+            cmd.arg("--no-shell");
+        }
 
         if let Some(ref kc) = key_content {
             cmd.arg("--key-content").arg(kc);
@@ -162,6 +167,10 @@ impl SshBridge {
         let stdin = child.stdin.take().ok_or("Failed to get stdin")?;
         let stdout = child.stdout.take().ok_or("Failed to get stdout")?;
         let stderr = child.stderr.take();
+
+        // If no_shell, we don't need to read stdout/stdin for terminal data
+        // but we still want to log stderr and maybe handle status messages on stdout?
+        // Actually, sidecar still emits status on stdout.
 
         // Spawn a thread to log stderr from the Python sidecar
         if let Some(stderr_stream) = stderr {
@@ -257,6 +266,7 @@ impl SshBridge {
             Session {
                 process: child,
                 stdin,
+                host_id: host_id.to_string(),
             },
         );
 
@@ -281,6 +291,46 @@ impl SshBridge {
                 .map_err(|e| e.to_string())?;
             stdin.flush().map_err(|e| e.to_string())?;
             Ok(())
+        } else {
+            Err("Session not found".to_string())
+        }
+    }
+
+    pub async fn update_forwarding_rules(&self, session_id: &str, rules: serde_json::Value) -> Result<(), String> {
+        if let Some(session) = self.sessions.get(session_id) {
+            let msg = serde_json::json!({
+                "type": "update_forwarding",
+                "rules": rules
+            });
+            let mut stdin = &session.stdin;
+            let line = format!("{}\n", msg.to_string());
+            stdin.write_all(line.as_bytes()).map_err(|e| e.to_string())?;
+            stdin.flush().map_err(|e| e.to_string())?;
+            Ok(())
+        } else {
+            Err("Session not found".to_string())
+        }
+    }
+
+    pub async fn sync_port_forwarding(&self, session_id: &str) -> Result<(), String> {
+        if let Some(session) = self.sessions.get(session_id) {
+            let storage = storage_dir();
+            let path = storage.join("port_forwarding_rules.json");
+            let rules_json = if path.exists() {
+                let data = std::fs::read_to_string(&path)
+                    .map_err(|e| format!("Failed to read rules: {}", e))?;
+                let all_rules: Vec<Value> = serde_json::from_str(&data)
+                    .map_err(|e| format!("Failed to parse rules: {}", e))?;
+                
+                let filtered: Vec<Value> = all_rules.into_iter()
+                    .filter(|r| r.get("hostId").and_then(|v| v.as_str()) == Some(&session.host_id))
+                    .collect();
+                serde_json::to_value(filtered).unwrap()
+            } else {
+                serde_json::json!([])
+            };
+            
+            self.update_forwarding_rules(session_id, rules_json).await
         } else {
             Err("Session not found".to_string())
         }

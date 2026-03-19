@@ -124,7 +124,17 @@ export default function App() {
     const unlistenDisconnect = listen<{ sessionId: string }>(
       "ssh-disconnected",
       (event) => {
-        markDisconnected(event.payload.sessionId);
+        const sid = event.payload.sessionId;
+        markDisconnected(sid);
+        
+        // Also cleanup forwarder state if this was a background tunnel
+        const state = useStore.getState();
+        const hostId = Object.keys(state.forwardingSessions).find(
+          (h) => state.forwardingSessions[h] === sid
+        );
+        if (hostId) {
+          state.removeForwardingSession(hostId);
+        }
       },
     );
     return () => {

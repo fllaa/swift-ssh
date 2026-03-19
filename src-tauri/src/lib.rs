@@ -52,6 +52,7 @@ pub fn run() {
             list_port_forwarding_rules,
             save_port_forwarding_rule,
             delete_port_forwarding_rule,
+            sync_port_forwarding,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -512,13 +513,14 @@ async fn test_connection(
 #[tauri::command]
 async fn connect_host(
     host_id: String,
+    no_shell: Option<bool>,
     state: tauri::State<'_, Arc<Mutex<SshBridge>>>,
     vault: tauri::State<'_, Arc<Mutex<SecureVault>>>,
 ) -> Result<String, String> {
     let v = vault.lock().await;
     let key = v.get_key().ok();
     let mut bridge = state.lock().await;
-    bridge.connect(&host_id, key).await
+    bridge.connect(&host_id, key, no_shell.unwrap_or(false)).await
 }
 
 #[tauri::command]
@@ -538,6 +540,15 @@ async fn send_input(
 ) -> Result<(), String> {
     let bridge = state.lock().await;
     bridge.send_input(&session_id, &data).await
+}
+
+#[tauri::command]
+async fn sync_port_forwarding(
+    session_id: String,
+    state: tauri::State<'_, Arc<Mutex<SshBridge>>>,
+) -> Result<(), String> {
+    let bridge = state.lock().await;
+    bridge.sync_port_forwarding(&session_id).await
 }
 
 // ── SFTP Session Commands ──────────────────────────────
