@@ -335,4 +335,21 @@ impl SshBridge {
             Err("Session not found".to_string())
         }
     }
+
+    pub async fn resize_terminal(&self, session_id: &str, cols: u16, rows: u16) -> Result<(), String> {
+        if let Some(session) = self.sessions.get(session_id) {
+            let msg = serde_json::json!({
+                "type": "resize",
+                "cols": cols,
+                "rows": rows
+            });
+            let mut stdin = &session.stdin;
+            let line = format!("{}\n", msg.to_string());
+            stdin.write_all(line.as_bytes()).map_err(|e| e.to_string())?;
+            stdin.flush().map_err(|e| e.to_string())?;
+            Ok(())
+        } else {
+            Err("Session not found".to_string())
+        }
+    }
 }

@@ -375,6 +375,12 @@ def main():
                     msg = json.loads(line)
                     if msg.get("type") == "update_forwarding":
                         apply_forwarding_rules(msg.get("rules", []))
+                    elif msg.get("type") == "resize":
+                        cols = msg.get("cols", 120)
+                        rows = msg.get("rows", 40)
+                        if channel and not channel.closed:
+                            log(f"Resizing PTY to {cols}x{rows}")
+                            channel.resize_pty(width=cols, height=rows)
                     continue
                 except Exception as e:
                     log(f"JSON control error: {e}")

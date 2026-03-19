@@ -130,7 +130,7 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
             const remaining = Math.max(0, minLoadingTime - elapsed);
             setTimeout(() => {
               setConnecting(false);
-              // Trigger a fit once visible
+              // Trigger a fit once visible, which will also trigger onResize
               requestAnimationFrame(() => fit.fit());
             }, remaining);
           }
@@ -181,6 +181,19 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
     window.addEventListener("resize", handleResize);
     const observer = new ResizeObserver(() => fit.fit());
     observer.observe(containerRef.current);
+
+    // Sync PTY size with xterm.js
+    term.onResize(({ cols, rows }) => {
+      if (sessionIdRef.current) {
+        invoke("resize_terminal", {
+          sessionId: sessionIdRef.current,
+          cols: Math.floor(cols),
+          rows: Math.floor(rows),
+        }).catch((err) =>
+          console.error("[TerminalTab] resize_terminal error:", err),
+        );
+      }
+    });
 
     return () => {
       unlistenPromise.then((fn) => fn());

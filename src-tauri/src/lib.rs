@@ -53,6 +53,7 @@ pub fn run() {
             save_port_forwarding_rule,
             delete_port_forwarding_rule,
             sync_port_forwarding,
+            resize_terminal,
             list_snippets,
             save_snippet,
             delete_snippet,
@@ -606,6 +607,17 @@ async fn sync_port_forwarding(
 ) -> Result<(), String> {
     let bridge = state.lock().await;
     bridge.sync_port_forwarding(&session_id).await
+}
+
+#[tauri::command]
+async fn resize_terminal(
+    session_id: String,
+    cols: u16,
+    rows: u16,
+    state: tauri::State<'_, Arc<Mutex<SshBridge>>>,
+) -> Result<(), String> {
+    let bridge = state.lock().await;
+    bridge.resize_terminal(&session_id, cols, rows).await
 }
 
 // ── SFTP Session Commands ──────────────────────────────
