@@ -77,7 +77,7 @@ export default function Sidebar({ onAddHost, onEditHost }: SidebarProps) {
       {/* Sidebar Footer */}
       <div className="p-4 border-t border-slate-800">
         <div className="flex items-center text-xs text-slate-500">
-          <span>v{pkg.version} dev</span>
+          <span>v{pkg.version} {__COMMIT_SHA__}</span>
         </div>
       </div>
     </aside>
