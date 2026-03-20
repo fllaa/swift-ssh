@@ -29,6 +29,7 @@ export default function PortForwardingScreen({
     setForwardingSession,
     removeForwardingSession,
     tabs,
+    sessions,
   } = useStore();
 
   const handleDelete = async (
@@ -66,10 +67,10 @@ export default function PortForwardingScreen({
         );
       }
 
-      for (const tab of tabs) {
-        if (tab.hostId === rule.hostId && tab.sessionId && tab.connected) {
+      for (const session of sessions) {
+        if (session.hostId === rule.hostId && session.sessionId && session.connected) {
           await invoke("sync_port_forwarding", {
-            sessionId: tab.sessionId,
+            sessionId: session.sessionId,
           }).catch(console.error);
         }
       }
