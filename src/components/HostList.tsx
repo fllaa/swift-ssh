@@ -32,7 +32,7 @@ export default function HostList({ onAddHost, onEditHost }: HostListProps) {
     });
     if (!confirmed) return;
     try {
-      await invoke("delete_host", { hostId: host.id });
+      await invoke("delete_host", { host_id: host.id });
       removeHost(host.id);
     } catch (err) {
       console.error("Delete failed:", err);
