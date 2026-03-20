@@ -1,5 +1,7 @@
 # SwiftSSH
 
+![SwiftSSH hosts screen](public/hosts-screen.png)
+
 A lightweight, cross-platform desktop SSH client for managing SSH host profiles, storing private keys securely, and running multiple interactive terminal and SFTP sessions — all from a clean, dark-themed interface.
 
 ![Tauri v2](https://img.shields.io/badge/Tauri-v2-blue) ![React](https://img.shields.io/badge/React-19-61dafb) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6) ![Python](https://img.shields.io/badge/Python-3.10+-yellow) ![License](https://img.shields.io/badge/License-MIT-green)
