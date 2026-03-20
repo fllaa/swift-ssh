@@ -24,6 +24,20 @@
           "x": 16,
           "y": 20
         }
+      },
+      {
+        "label": "settings",
+        "title": "Settings",
+        "width": 800,
+        "height": 550,
+        "resizable": true,
+        "hiddenTitle": true,
+        "titleBarStyle": "Overlay",
+        "visible": false,
+        "trafficLightPosition": {
+          "x": 16,
+          "y": 20
+        }
       }
     ],
     "security": {

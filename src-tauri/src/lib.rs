@@ -8,6 +8,7 @@ use sftp_bridge::SftpBridge;
 use ssh_bridge::SshBridge;
 use std::sync::Arc;
 use tauri::Manager;
+use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tokio::sync::Mutex;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -17,15 +18,6 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_log::Builder::default().build())
-        .setup(|app| {
-            let bridge = Arc::new(Mutex::new(SshBridge::new(app.handle().clone())));
-            app.manage(bridge);
-            let sftp = Arc::new(Mutex::new(SftpBridge::new(app.handle().clone())));
-            app.manage(sftp);
-            let vault = Arc::new(Mutex::new(SecureVault::new()));
-            app.manage(vault);
-            Ok(())
-        })
         .invoke_handler(tauri::generate_handler![
             list_hosts,
             save_host,
@@ -59,7 +51,77 @@ pub fn run() {
             list_snippets,
             save_snippet,
             delete_snippet,
+            change_vault_password,
+            open_settings_window,
         ])
+        .setup(|app| {
+            let bridge = Arc::new(Mutex::new(SshBridge::new(app.handle().clone())));
+            app.manage(bridge);
+            let sftp = Arc::new(Mutex::new(SftpBridge::new(app.handle().clone())));
+            app.manage(sftp);
+            let vault = Arc::new(Mutex::new(SecureVault::new()));
+            app.manage(vault);
+
+            // Setup macOS App Menu
+            #[cfg(target_os = "macos")]
+            {
+                let pkg_info = app.package_info();
+                let app_name = &pkg_info.name;
+
+                let settings_item = MenuItemBuilder::with_id("settings", "Settings...")
+                    .accelerator("Cmd+,")
+                    .build(app)?;
+
+                let app_menu = SubmenuBuilder::new(app, app_name)
+                    .about(None)
+                    .separator()
+                    .item(&settings_item)
+                    .separator()
+                    .services()
+                    .separator()
+                    .hide()
+                    .hide_others()
+                    .show_all()
+                    .separator()
+                    .quit()
+                    .build()?;
+
+                let edit_menu = SubmenuBuilder::new(app, "Edit")
+                    .undo()
+                    .redo()
+                    .separator()
+                    .cut()
+                    .copy()
+                    .paste()
+                    .select_all()
+                    .build()?;
+
+                let view_menu = SubmenuBuilder::new(app, "View")
+                    .fullscreen()
+                    .build()?;
+
+                let window_menu = SubmenuBuilder::new(app, "Window")
+                    .minimize()
+                    .maximize()
+                    .separator()
+                    .close_window()
+                    .build()?;
+
+                let menu = MenuBuilder::new(app)
+                    .items(&[&app_menu, &edit_menu, &view_menu, &window_menu])
+                    .build()?;
+
+                app.set_menu(menu)?;
+
+                app.on_menu_event(move |app_handle, event| {
+                    if event.id() == "settings" {
+                        let _ = open_settings_window(app_handle.clone());
+                    }
+                });
+            }
+
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -101,6 +163,36 @@ async fn lock_vault(
 ) -> Result<(), String> {
     let mut v = vault.lock().await;
     v.lock();
+    Ok(())
+}
+
+#[tauri::command]
+async fn change_vault_password(
+    old_password: String,
+    new_password: String,
+    vault: tauri::State<'_, Arc<Mutex<SecureVault>>>,
+) -> Result<(), String> {
+    let mut v = vault.lock().await;
+    v.change_password(&old_password, &new_password)
+}
+
+#[tauri::command]
+fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("settings") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    } else {
+        let _ = tauri::WebviewWindowBuilder::new(
+            &app,
+            "settings",
+            tauri::WebviewUrl::App("index.html".into()), // or just use the route if frontend supports it
+        )
+        .title("Settings")
+        .inner_size(600.0, 400.0)
+        .resizable(false)
+        .build()
+        .map_err(|e| e.to_string())?;
+    }
     Ok(())
 }
 

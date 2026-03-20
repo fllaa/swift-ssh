@@ -38,6 +38,7 @@ import AddPortForwardingModal from "./components/AddPortForwardingModal";
 import SnippetsScreen from "./components/SnippetsScreen";
 import LayoutRenderer from "./components/LayoutRenderer";
 import SnippetsSidebar from "./components/SnippetsSidebar";
+import SettingsScreen from "./components/SettingsScreen";
 import { v4 as uuidv4 } from "uuid";
 
 export default function App() {
@@ -84,6 +85,12 @@ export default function App() {
   const [vaultUnlocked, setVaultUnlocked] = useState(false);
   const isWindows = useMemo(() => {
     return platform() === "windows";
+  }, []);
+
+  const [windowLabel, setWindowLabel] = useState<string>("");
+
+  useEffect(() => {
+    setWindowLabel(getCurrentWindow().label);
   }, []);
 
   const activeVault = vaults.find((v) => v.id === activeVaultId) || vaults[0];
@@ -185,6 +192,11 @@ export default function App() {
     };
   }, []);
 
+  // Early returns must come AFTER all hook declarations
+  if (windowLabel === "settings") {
+    return <SettingsScreen />;
+  }
+
   if (!vaultUnlocked) {
     return <UnlockModal onUnlocked={() => setVaultUnlocked(true)} />;
   }
@@ -265,6 +277,22 @@ export default function App() {
                   : "text-orange-400";
               }
 
+              let icon;
+              if (sessionCount > 1) {
+                icon = (
+                  <div className="relative">
+                    <LayoutGrid className={`w-3.5 h-3.5 ${statusColor}`} />
+                    <div className="absolute -top-1.5 -right-1.5 bg-blue-500 text-[8px] text-white w-3 h-3 flex items-center justify-center rounded-full border border-[#1a1f2e] font-bold">
+                      {sessionCount}
+                    </div>
+                  </div>
+                );
+              } else if (mainSession?.type === "sftp") {
+                icon = <FolderOpen className={`w-3.5 h-3.5 ${statusColor}`} />;
+              } else {
+                icon = <Server className={`w-3.5 h-3.5 ${statusColor}`} />;
+              }
+
               return (
                 <div
                   key={tab.id}
@@ -293,18 +321,7 @@ export default function App() {
                   }`}
                   style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
                 >
-                  {sessionCount > 1 ? (
-                    <div className="relative">
-                      <LayoutGrid className={`w-3.5 h-3.5 ${statusColor}`} />
-                      <div className="absolute -top-1.5 -right-1.5 bg-blue-500 text-[8px] text-white w-3 h-3 flex items-center justify-center rounded-full border border-[#1a1f2e] font-bold">
-                        {sessionCount}
-                      </div>
-                    </div>
-                  ) : mainSession?.type === "sftp" ? (
-                    <FolderOpen className={`w-3.5 h-3.5 ${statusColor}`} />
-                  ) : (
-                    <Server className={`w-3.5 h-3.5 ${statusColor}`} />
-                  )}
+                  {icon}
                   {renamingTabId === tab.id ? (
                     <input
                       autoFocus

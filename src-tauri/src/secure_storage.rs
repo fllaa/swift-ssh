@@ -108,6 +108,84 @@ impl SecureVault {
         }
         self.key = None;
     }
+
+    /// Change the master password and re-encrypt all sensitive data.
+    pub fn change_password(&mut self, old_password: &str, new_password: &str) -> Result<(), String> {
+        let meta = load_meta()?;
+        let salt = base64::Engine::decode(
+            &base64::engine::general_purpose::STANDARD,
+            &meta.salt,
+        )
+        .map_err(|e| format!("Failed to decode salt: {}", e))?;
+
+        if !crypto::verify_password(old_password, &salt, &meta.verify_hash)? {
+            return Err("Incorrect old password".to_string());
+        }
+
+        let old_key = crypto::derive_key(old_password, &salt)?;
+        let storage = ssh_bridge::storage_dir();
+
+        // 1. Decrypt all sensitive data with old key
+        
+        // Hosts
+        let hosts_path = storage.join("hosts.json");
+        let mut hosts: Vec<Value> = if hosts_path.exists() {
+            let data = std::fs::read_to_string(&hosts_path).map_err(|e| e.to_string())?;
+            serde_json::from_str(&data).unwrap_or_default()
+        } else {
+            vec![]
+        };
+        for host in hosts.iter_mut() {
+            let _ = decrypt_sensitive_fields(host, &old_key, &["password"]);
+        }
+
+        // Keys
+        let keys_path = storage.join("keys.json");
+        let mut keys: Vec<Value> = if keys_path.exists() {
+            let data = std::fs::read_to_string(&keys_path).map_err(|e| e.to_string())?;
+            serde_json::from_str(&data).unwrap_or_default()
+        } else {
+            vec![]
+        };
+        for key_entry in keys.iter_mut() {
+            let _ = decrypt_sensitive_fields(key_entry, &old_key, &["privateKey"]);
+        }
+
+        // 2. Setup new key
+        let new_salt = crypto::generate_salt();
+        let new_key = crypto::derive_key(new_password, &new_salt)?;
+        let new_verify_hash = crypto::create_verify_hash(new_password, &new_salt)?;
+
+        // 3. Re-encrypt with new key
+        for host in hosts.iter_mut() {
+            encrypt_sensitive_fields(host, &new_key, &["password"])?;
+        }
+        for key_entry in keys.iter_mut() {
+            encrypt_sensitive_fields(key_entry, &new_key, &["privateKey"])?;
+        }
+
+        // 4. Save everything
+        let new_meta = VaultMeta {
+            salt: base64::Engine::encode(
+                &base64::engine::general_purpose::STANDARD,
+                &new_salt,
+            ),
+            verify_hash: new_verify_hash,
+        };
+        
+        let meta_json = serde_json::to_string_pretty(&new_meta)
+            .map_err(|e| format!("Failed to serialize new vault meta: {}", e))?;
+        std::fs::write(meta_path(), meta_json).map_err(|e| e.to_string())?;
+
+        let hosts_json = serde_json::to_string_pretty(&hosts).map_err(|e| e.to_string())?;
+        std::fs::write(&hosts_path, hosts_json).map_err(|e| e.to_string())?;
+
+        let keys_json = serde_json::to_string_pretty(&keys).map_err(|e| e.to_string())?;
+        std::fs::write(&keys_path, keys_json).map_err(|e| e.to_string())?;
+
+        self.key = Some(new_key);
+        Ok(())
+    }
 }
 
 // ── Path helpers ──────────────────────────────────────────
