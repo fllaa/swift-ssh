@@ -31,16 +31,16 @@ A lightweight, cross-platform desktop SSH client for managing SSH host profiles,
 
 ## Tech Stack
 
-| Layer             | Technology                                                               |
-| :---------------- | :----------------------------------------------------------------------- |
-| Desktop framework | [Tauri v2](https://v2.tauri.app) (Rust)                                  |
+| Layer             | Technology                                                              |
+| :---------------- | :---------------------------------------------------------------------- |
+| Desktop framework | [Tauri v2](https://v2.tauri.app) (Rust)                                 |
 | Frontend          | [React 19](https://react.dev) + TypeScript + [Vite 6](https://vite.dev) |
-| Styling           | [Tailwind CSS v4](https://tailwindcss.com)                               |
-| State management  | [Zustand](https://zustand.docs.pmnd.rs)                                  |
-| Terminal emulator | [xterm.js v6](https://xtermjs.org)                                       |
-| SSH/SFTP backend  | Python 3 sidecar using [Paramiko](https://www.paramiko.org)              |
+| Styling           | [Tailwind CSS v4](https://tailwindcss.com)                              |
+| State management  | [Zustand](https://zustand.docs.pmnd.rs)                                 |
+| Terminal emulator | [xterm.js v6](https://xtermjs.org)                                      |
+| SSH/SFTP backend  | Python 3 sidecar using [Paramiko](https://www.paramiko.org)             |
 | Encryption        | AES-GCM 256-bit + Argon2 KDF (Rust)                                     |
-| Storage           | JSON files + encrypted vault                                             |
+| Storage           | JSON files + encrypted vault                                            |
 
 ---
 
@@ -50,7 +50,7 @@ Make sure these are installed before getting started:
 
 | Tool       | Minimum version | Install                              |
 | :--------- | :-------------- | :----------------------------------- |
-| **Bun**    | 1.0+            | [bun.sh](https://bun.sh)            |
+| **Bun**    | 1.0+            | [bun.sh](https://bun.sh)             |
 | **Rust**   | 1.70+           | [rustup.rs](https://rustup.rs)       |
 | **Python** | 3.10+           | [python.org](https://www.python.org) |
 
@@ -240,7 +240,7 @@ Opens the Vite dev server at `http://localhost:1420`. Useful for iterating on UI
 
 ### Rust changes
 
-Changes to `src-tauri/src/` are automatically detected and recompiled when running `npm run tauri dev`.
+Changes to `src-tauri/src/` are automatically detected and recompiled when running `bun run tauri dev`.
 
 ### Python sidecar changes
 
