@@ -97,10 +97,10 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
       },
       fontFamily: settings.terminalFontFamily || "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
       fontSize: settings.terminalFontSize || 14,
-      lineHeight: 1.2,
-      cursorBlink: true,
-      cursorStyle: "bar",
-      scrollback: 5000,
+      lineHeight: settings.terminalLineHeight ?? 1.2,
+      cursorBlink: settings.terminalCursorBlink ?? true,
+      cursorStyle: settings.terminalCursorStyle ?? "bar",
+      scrollback: settings.terminalScrollback === 0 ? Infinity : (settings.terminalScrollback ?? 5000),
     });
 
     const fit = new FitAddon();

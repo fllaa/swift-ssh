@@ -12,6 +12,9 @@ import {
   Terminal,
   Lock,
   FileText,
+  Wifi,
+  Clock,
+  HardDrive,
 } from "lucide-react";
 
 type SettingsTab = "security" | "general" | "appearance" | "ssh-sftp";
@@ -28,10 +31,21 @@ export default function SettingsScreen() {
   const [logRetentionLimit, setLogRetentionLimit] = useState(settings.logRetentionLimit);
   const [logRetentionDays, setLogRetentionDays] = useState<number | null>(settings.logRetentionDays);
   const [settingsSaved, setSettingsSaved] = useState(false);
+  const [sshTimeout, setSshTimeout] = useState(settings.sshConnectionTimeout ?? 15);
+  const [sshKeepAlive, setSshKeepAlive] = useState(settings.sshKeepAliveInterval ?? 0);
+  const [defaultPort, setDefaultPort] = useState(settings.defaultSSHPort ?? 22);
+  const [sftpCmdTimeout, setSftpCmdTimeout] = useState(settings.sftpCommandTimeout ?? 30);
+  const [sftpXferTimeout, setSftpXferTimeout] = useState(settings.sftpTransferTimeout ?? 600);
+  const [sshSftpSaved, setSshSftpSaved] = useState(false);
 
   useEffect(() => {
     setLogRetentionLimit(settings.logRetentionLimit);
     setLogRetentionDays(settings.logRetentionDays);
+    setSshTimeout(settings.sshConnectionTimeout ?? 15);
+    setSshKeepAlive(settings.sshKeepAliveInterval ?? 0);
+    setDefaultPort(settings.defaultSSHPort ?? 22);
+    setSftpCmdTimeout(settings.sftpCommandTimeout ?? 30);
+    setSftpXferTimeout(settings.sftpTransferTimeout ?? 600);
   }, [settings]);
 
   const handleSaveLogSettings = async () => {
@@ -41,6 +55,25 @@ export default function SettingsScreen() {
       await invoke("save_settings", { settings: newSettings });
       setSettingsSaved(true);
       setTimeout(() => setSettingsSaved(false), 2000);
+    } catch (err) {
+      console.error("Failed to save settings:", err);
+    }
+  };
+
+  const handleSaveSshSftpSettings = async () => {
+    const newSettings = {
+      ...settings,
+      sshConnectionTimeout: sshTimeout,
+      sshKeepAliveInterval: sshKeepAlive,
+      defaultSSHPort: defaultPort,
+      sftpCommandTimeout: sftpCmdTimeout,
+      sftpTransferTimeout: sftpXferTimeout,
+    };
+    setSettings(newSettings);
+    try {
+      await invoke("save_settings", { settings: newSettings });
+      setSshSftpSaved(true);
+      setTimeout(() => setSshSftpSaved(false), 2000);
     } catch (err) {
       console.error("Failed to save settings:", err);
     }
@@ -435,20 +468,252 @@ export default function SettingsScreen() {
                     </div>
                   </div>
                 </div>
+
+                {/* Terminal Behavior */}
+                <div className="space-y-8 pt-4">
+                  <div className="border-t border-white/5 pt-8">
+                    <h3 className="text-sm font-bold text-slate-200 uppercase tracking-widest">Terminal Behavior</h3>
+                    <p className="text-xs text-slate-500 mt-1">Configure cursor, scrollback, and line spacing. Changes apply to new terminal sessions.</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Cursor Style */}
+                    <div className="space-y-3">
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">
+                        Cursor Style
+                      </label>
+                      <select
+                        value={settings.terminalCursorStyle ?? "bar"}
+                        onChange={(e) => {
+                          const newSettings = { ...settings, terminalCursorStyle: e.target.value as "bar" | "block" | "underline" };
+                          setSettings(newSettings);
+                          invoke("save_settings", { settings: newSettings });
+                        }}
+                        className="w-full bg-navy-sidebar border border-white/10 rounded-xl px-4 py-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all text-slate-100 appearance-none cursor-pointer"
+                      >
+                        <option value="bar">Bar</option>
+                        <option value="block">Block</option>
+                        <option value="underline">Underline</option>
+                      </select>
+                    </div>
+
+                    {/* Cursor Blink */}
+                    <div className="space-y-3">
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">
+                        Cursor Blink
+                      </label>
+                      <button
+                        onClick={() => {
+                          const newSettings = { ...settings, terminalCursorBlink: !(settings.terminalCursorBlink ?? true) };
+                          setSettings(newSettings);
+                          invoke("save_settings", { settings: newSettings });
+                        }}
+                        className="flex items-center gap-3 w-full bg-navy-sidebar border border-white/10 rounded-xl px-4 py-3 transition-all"
+                      >
+                        <div className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${
+                          (settings.terminalCursorBlink ?? true) ? "bg-blue-500" : "bg-white/10"
+                        }`}>
+                          <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${
+                            (settings.terminalCursorBlink ?? true) ? "translate-x-5" : "translate-x-0.5"
+                          }`} />
+                        </div>
+                        <span className="text-sm text-slate-300">
+                          {(settings.terminalCursorBlink ?? true) ? "Enabled" : "Disabled"}
+                        </span>
+                      </button>
+                    </div>
+
+                    {/* Line Height */}
+                    <div className="space-y-3">
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">
+                        Line Height
+                      </label>
+                      <div className="flex items-center gap-4">
+                        <input
+                          type="range"
+                          min="1.0"
+                          max="2.0"
+                          step="0.1"
+                          value={settings.terminalLineHeight ?? 1.2}
+                          onChange={(e) => {
+                            const newSettings = { ...settings, terminalLineHeight: Number(e.target.value) };
+                            setSettings(newSettings);
+                            invoke("save_settings", { settings: newSettings });
+                          }}
+                          className="flex-1 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                        />
+                        <span className="text-sm font-mono text-slate-300 w-8 text-center">{(settings.terminalLineHeight ?? 1.2).toFixed(1)}</span>
+                      </div>
+                    </div>
+
+                    {/* Scrollback Buffer */}
+                    <div className="space-y-3">
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">
+                        Scrollback Buffer
+                      </label>
+                      <select
+                        value={settings.terminalScrollback ?? 5000}
+                        onChange={(e) => {
+                          const newSettings = { ...settings, terminalScrollback: Number(e.target.value) };
+                          setSettings(newSettings);
+                          invoke("save_settings", { settings: newSettings });
+                        }}
+                        className="w-full bg-navy-sidebar border border-white/10 rounded-xl px-4 py-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all text-slate-100 appearance-none cursor-pointer"
+                      >
+                        <option value={1000}>1,000 lines</option>
+                        <option value={5000}>5,000 lines</option>
+                        <option value={10000}>10,000 lines</option>
+                        <option value={50000}>50,000 lines</option>
+                        <option value={0}>Unlimited</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
-            {activeTab !== "security" && activeTab !== "general" && activeTab !== "appearance" && (
-              <div className="flex flex-col items-center justify-center h-full text-center space-y-4 py-20">
-                <div className="p-6 bg-white/5 rounded-full text-slate-500">
-                  <Settings className="w-12 h-12 animate-pulse" />
+            {activeTab === "ssh-sftp" && (
+              <div className="space-y-12 pb-20">
+                <div>
+                  <h2 className="text-2xl font-bold flex items-center gap-3">
+                    <div className="p-2 bg-emerald-600/10 rounded-lg text-emerald-400 border border-emerald-500/20">
+                      <Wifi className="w-5 h-5" />
+                    </div>
+                    SSH Connection
+                  </h2>
+                  <p className="text-slate-400 mt-3 leading-relaxed max-w-lg">
+                    Configure default SSH connection parameters and keep-alive behavior.
+                  </p>
                 </div>
-                <h2 className="text-xl font-semibold text-slate-300 capitalize">{activeTab.replace("-", " ")} Settings</h2>
-                <p className="text-slate-500 max-w-sm">
-                  This section is under development and will be available in a future update.
-                </p>
+
+                <div className="space-y-6 max-w-md">
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">
+                      Connection Timeout
+                    </label>
+                    <select
+                      value={sshTimeout}
+                      onChange={(e) => setSshTimeout(Number(e.target.value))}
+                      className="w-full bg-navy-sidebar border border-white/10 rounded-xl px-4 py-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all text-slate-100 appearance-none cursor-pointer"
+                    >
+                      <option value={5}>5 seconds</option>
+                      <option value={10}>10 seconds</option>
+                      <option value={15}>15 seconds</option>
+                      <option value={30}>30 seconds</option>
+                      <option value={60}>60 seconds</option>
+                    </select>
+                    <p className="text-xs text-slate-600 pl-1">
+                      Maximum time to wait when establishing an SSH connection.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">
+                      Keep-Alive Interval
+                    </label>
+                    <select
+                      value={sshKeepAlive}
+                      onChange={(e) => setSshKeepAlive(Number(e.target.value))}
+                      className="w-full bg-navy-sidebar border border-white/10 rounded-xl px-4 py-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all text-slate-100 appearance-none cursor-pointer"
+                    >
+                      <option value={0}>Disabled</option>
+                      <option value={15}>Every 15 seconds</option>
+                      <option value={30}>Every 30 seconds</option>
+                      <option value={60}>Every 60 seconds</option>
+                      <option value={120}>Every 120 seconds</option>
+                    </select>
+                    <p className="text-xs text-slate-600 pl-1">
+                      Send periodic keep-alive packets to prevent idle disconnects.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">
+                      Default Port
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={65535}
+                      value={defaultPort}
+                      onChange={(e) => setDefaultPort(Number(e.target.value))}
+                      className="w-full bg-navy-sidebar border border-white/10 rounded-xl px-4 py-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all text-slate-100 placeholder-slate-600"
+                      placeholder="22"
+                    />
+                    <p className="text-xs text-slate-600 pl-1">
+                      Default port used when adding new hosts (1-65535).
+                    </p>
+                  </div>
+                </div>
+
+                {/* SFTP Timeouts */}
+                <div className="space-y-6">
+                  <div className="border-t border-white/5 pt-8">
+                    <h3 className="text-sm font-bold text-slate-200 uppercase tracking-widest flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-emerald-400" />
+                      SFTP Timeouts
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">Set timeout limits for file operations and transfers.</p>
+                  </div>
+
+                  <div className="max-w-md space-y-6">
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">
+                        Command Timeout
+                      </label>
+                      <select
+                        value={sftpCmdTimeout}
+                        onChange={(e) => setSftpCmdTimeout(Number(e.target.value))}
+                        className="w-full bg-navy-sidebar border border-white/10 rounded-xl px-4 py-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all text-slate-100 appearance-none cursor-pointer"
+                      >
+                        <option value={15}>15 seconds</option>
+                        <option value={30}>30 seconds</option>
+                        <option value={60}>60 seconds</option>
+                        <option value={120}>120 seconds</option>
+                      </select>
+                      <p className="text-xs text-slate-600 pl-1">
+                        Timeout for SFTP commands like listing directories and creating folders.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">
+                        Transfer Timeout
+                      </label>
+                      <select
+                        value={sftpXferTimeout}
+                        onChange={(e) => setSftpXferTimeout(Number(e.target.value))}
+                        className="w-full bg-navy-sidebar border border-white/10 rounded-xl px-4 py-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all text-slate-100 appearance-none cursor-pointer"
+                      >
+                        <option value={300}>5 minutes</option>
+                        <option value={600}>10 minutes</option>
+                        <option value={1800}>30 minutes</option>
+                        <option value={3600}>60 minutes</option>
+                        <option value={0}>Unlimited</option>
+                      </select>
+                      <p className="text-xs text-slate-600 pl-1">
+                        Maximum time allowed for file uploads and downloads.
+                      </p>
+                    </div>
+
+                    {sshSftpSaved && (
+                      <div className="flex items-center gap-3 text-sm text-green-400 bg-green-400/5 p-4 rounded-xl border border-green-400/10 animate-in zoom-in-95 duration-200">
+                        <Check className="w-5 h-5 shrink-0" />
+                        SSH & SFTP settings saved.
+                      </div>
+                    )}
+
+                    <button
+                      onClick={handleSaveSshSftpSettings}
+                      className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3.5 rounded-xl transition-all flex items-center justify-center gap-3 mt-6 shadow-xl shadow-blue-600/20 active:scale-[0.98]"
+                    >
+                      Save Settings
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
+
           </div>
         </div>
       </div>

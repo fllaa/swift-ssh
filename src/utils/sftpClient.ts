@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { v4 as uuidv4 } from "uuid";
-import type { FileEntry } from "../store/useStore";
+import { useStore, type FileEntry } from "../store/useStore";
 
 interface PendingRequest {
   resolve: (value: any) => void;
@@ -81,16 +81,20 @@ export class SftpClient {
     const promise = new Promise<any>((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
 
-      // Timeout after 30s for non-transfer commands, 10min for transfers
+      const storeSettings = useStore.getState().settings;
       const isTransfer = cmd === "upload" || cmd === "download";
-      const timeout = isTransfer ? 600000 : 30000;
-      setTimeout(() => {
-        if (this.pending.has(id)) {
-          this.pending.delete(id);
-          this.progressCallbacks.delete(id);
-          reject(new Error(`SFTP ${cmd} timed out`));
-        }
-      }, timeout);
+      const timeoutSec = isTransfer
+        ? (storeSettings.sftpTransferTimeout ?? 600)
+        : (storeSettings.sftpCommandTimeout ?? 30);
+      if (timeoutSec > 0) {
+        setTimeout(() => {
+          if (this.pending.has(id)) {
+            this.pending.delete(id);
+            this.progressCallbacks.delete(id);
+            reject(new Error(`SFTP ${cmd} timed out`));
+          }
+        }, timeoutSec * 1000);
+      }
     });
 
     const command = JSON.stringify({ id, cmd, ...params });

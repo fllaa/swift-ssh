@@ -260,6 +260,15 @@ export interface AppSettings {
   terminalFontSize: number;
   terminalFontFamily: string;
   terminalThemeId: string;
+  terminalCursorBlink: boolean;
+  terminalCursorStyle: "bar" | "block" | "underline";
+  terminalScrollback: number;
+  terminalLineHeight: number;
+  sshConnectionTimeout: number;
+  sshKeepAliveInterval: number;
+  defaultSSHPort: number;
+  sftpCommandTimeout: number;
+  sftpTransferTimeout: number;
 }
 
 export interface TabSession {
@@ -421,6 +430,15 @@ export const useStore = create<AppState>((set) => ({
     terminalFontSize: 14,
     terminalFontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
     terminalThemeId: "default",
+    terminalCursorBlink: true,
+    terminalCursorStyle: "bar",
+    terminalScrollback: 5000,
+    terminalLineHeight: 1.2,
+    sshConnectionTimeout: 15,
+    sshKeepAliveInterval: 0,
+    defaultSSHPort: 22,
+    sftpCommandTimeout: 30,
+    sftpTransferTimeout: 600,
   },
   isDraggingTab: false,
 
