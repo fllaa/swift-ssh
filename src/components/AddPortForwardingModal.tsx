@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useStore, PortForwardingRule } from "../store/useStore";
+import { logActivity } from "../lib/activityLog";
 import { Info, Search, Check, ChevronsUpDown, X, Shuffle } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import { message } from "@tauri-apps/plugin-dialog";
@@ -74,8 +75,10 @@ export default function AddPortForwardingModal({ rule, onClose }: AddPortForward
       .then(() => {
         if (rule) {
           updatePortForwardingRule(newRule);
+          logActivity("port-forwarding", "edit", `Updated forwarding rule "${newRule.label}"`, { ruleId: newRule.id });
         } else {
           addPortForwardingRule(newRule);
+          logActivity("port-forwarding", "add", `Added forwarding rule "${newRule.label}"`, { ruleId: newRule.id });
         }
         onClose();
       })

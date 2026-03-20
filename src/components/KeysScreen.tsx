@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useStore, SSHKey } from "../store/useStore";
+import { logActivity } from "../lib/activityLog";
 import { Key, Trash2, KeyRound, Copy, PlusCircle } from "lucide-react";
 import { ask } from "@tauri-apps/plugin-dialog";
 
@@ -28,6 +29,7 @@ export default function KeysScreen({ onAddKey }: KeysScreenProps) {
     try {
       await invoke("delete_key", { keyId: key.id });
       removeKey(key.id);
+      logActivity("key", "delete", `Deleted SSH key "${key.name}"`, { keyId: key.id });
     } catch (err) {
       console.error("Delete failed:", err);
     }

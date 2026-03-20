@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useStore, type FileEntry, type Transfer } from "../store/useStore";
+import { logActivity } from "../lib/activityLog";
 import { SftpClient } from "../utils/sftpClient";
 import FileBrowserPane from "./FileBrowserPane";
 import TransferQueue from "./TransferQueue";
@@ -111,6 +112,8 @@ export default function SftpTab({ tabId, hostId }: SftpTabProps) {
           (event) => {
             if (event.payload.sessionId === sessionId) {
               setStatus("connected");
+              const sftpHost = useStore.getState().hosts.find(h => h.id === hostId);
+              logActivity("sftp", "connect", `SFTP connected to ${sftpHost?.label || hostId}`, { hostId });
               // Update lastConnected timestamp
               const currentHost = useStore.getState().hosts.find(h => h.id === hostId);
               if (currentHost) {
@@ -133,6 +136,8 @@ export default function SftpTab({ tabId, hostId }: SftpTabProps) {
               setError(event.payload.error);
             }
             markDisconnected(sessionId);
+            const sftpHost2 = useStore.getState().hosts.find(h => h.id === hostId);
+            logActivity("sftp", "disconnect", `SFTP disconnected from ${sftpHost2?.label || hostId}`, { hostId });
           }
         });
 

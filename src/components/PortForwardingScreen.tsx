@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useStore, PortForwardingRule } from "../store/useStore";
+import { logActivity } from "../lib/activityLog";
 import {
   Shuffle,
   Trash2,
@@ -44,6 +45,7 @@ export default function PortForwardingScreen({
     try {
       await invoke("delete_port_forwarding_rule", { id: rule.id });
       removePortForwardingRule(rule.id);
+      logActivity("port-forwarding", "delete", `Deleted forwarding rule "${rule.label}"`, { ruleId: rule.id });
     } catch (err) {
       await message("Delete failed: " + err, { title: "Error", kind: "error" });
     }
@@ -54,6 +56,7 @@ export default function PortForwardingScreen({
     try {
       await invoke("save_port_forwarding_rule", { rule: updated });
       updatePortForwardingRule(updated);
+      logActivity("port-forwarding", updated.enabled ? "enable" : "disable", `${updated.enabled ? "Enabled" : "Disabled"} forwarding rule "${updated.label}"`, { ruleId: updated.id });
 
       // Live sync to any active sessions for this host
       const bgSid = forwardingSessions[rule.hostId];

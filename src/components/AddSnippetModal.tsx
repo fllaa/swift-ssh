@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { X, Save, Command, AlignLeft, Tag } from "lucide-react";
 import { useStore, Snippet } from "../store/useStore";
+import { logActivity } from "../lib/activityLog";
 import { invoke } from "@tauri-apps/api/core";
 
 interface AddSnippetModalProps {
@@ -52,8 +53,10 @@ const AddSnippetModal: React.FC<AddSnippetModalProps> = ({
       await invoke("save_snippet", { snippet: snippetData });
       if (editingSnippet) {
         updateSnippet(snippetData);
+        logActivity("snippet", "edit", `Updated snippet "${snippetData.name}"`, { snippetId: snippetData.id });
       } else {
         addSnippet(snippetData);
+        logActivity("snippet", "add", `Created snippet "${snippetData.name}"`, { snippetId: snippetData.id });
       }
       onClose();
     } catch (err) {

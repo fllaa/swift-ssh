@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, FolderPlus, Folder, Cloud, Database, Server, Code } from "lucide-react";
 import { useStore, Group } from "../store/useStore";
+import { logActivity } from "../lib/activityLog";
 import { v4 as uuidv4 } from "uuid";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -46,6 +47,7 @@ export default function AddGroupModal({ group, onClose }: AddGroupModalProps) {
       };
       updateGroup(updatedGroup);
       await invoke("save_group", { group: updatedGroup }).catch(console.error);
+      logActivity("group", "edit", `Updated group "${updatedGroup.name}"`, { groupId: updatedGroup.id });
     } else {
       const newGroup: Group = {
         id: uuidv4(),
@@ -56,8 +58,9 @@ export default function AddGroupModal({ group, onClose }: AddGroupModalProps) {
       };
       addGroup(newGroup);
       await invoke("save_group", { group: newGroup }).catch(console.error);
+      logActivity("group", "add", `Created group "${newGroup.name}"`, { groupId: newGroup.id });
     }
-    
+
     onClose();
   };
 

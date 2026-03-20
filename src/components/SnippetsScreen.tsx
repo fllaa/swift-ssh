@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useStore, Snippet } from "../store/useStore";
+import { logActivity } from "../lib/activityLog";
 import { 
   Plus, 
   Terminal, 
@@ -24,7 +25,9 @@ const SnippetsScreen: React.FC = () => {
     e.stopPropagation();
     try {
       await invoke("delete_snippet", { id });
+      const snippet = snippets.find((s) => s.id === id);
       removeSnippet(id);
+      logActivity("snippet", "delete", `Deleted snippet "${snippet?.name || id}"`, { snippetId: id });
     } catch (err) {
       console.error("Failed to delete snippet:", err);
     }

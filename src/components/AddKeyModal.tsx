@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, Key, Upload } from "lucide-react";
 import { useStore, SSHKey } from "../store/useStore";
+import { logActivity } from "../lib/activityLog";
 import { invoke } from "@tauri-apps/api/core";
 import { message } from "@tauri-apps/plugin-dialog";
 
@@ -21,6 +22,7 @@ export default function AddKeyModal({ onClose }: AddKeyModalProps) {
         privateKeyContent: privateKeyContent.trim(),
       });
       addKey(key);
+      logActivity("key", "add", `Added SSH key "${key.name}"`, { keyId: key.id });
       onClose();
     } catch (err) {
       console.error("Save key failed:", err);

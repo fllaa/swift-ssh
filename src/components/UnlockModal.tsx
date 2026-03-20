@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Shield, Eye, EyeOff, Lock, AlertCircle } from "lucide-react";
+import { logActivity } from "../lib/activityLog";
 
 interface UnlockModalProps {
   readonly onUnlocked: () => void;
@@ -45,6 +46,7 @@ export default function UnlockModal({ onUnlocked }: UnlockModalProps) {
     setError("");
     try {
       await invoke("unlock_vault", { password });
+      logActivity("vault", "unlock", "Vault unlocked");
       onUnlocked();
     } catch (err) {
       setError(String(err));
@@ -70,6 +72,7 @@ export default function UnlockModal({ onUnlocked }: UnlockModalProps) {
     setError("");
     try {
       await invoke("init_vault", { password });
+      logActivity("vault", "init", "Vault initialized");
       onUnlocked();
     } catch (err) {
       setError(String(err));

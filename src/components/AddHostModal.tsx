@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { v4 as uuidv4 } from "uuid";
 import { useStore, HostProfile } from "../store/useStore";
+import { logActivity } from "../lib/activityLog";
 import {
   X,
   PlusSquare,
@@ -105,8 +106,10 @@ export default function AddHostModal({ host, onClose }: AddHostModalProps) {
       await invoke("save_host", { profile });
       if (isEdit) {
         updateHost(profile);
+        logActivity("host", "edit", `Updated host "${profile.label}"`, { hostId: profile.id });
       } else {
         addHost(profile);
+        logActivity("host", "add", `Added host "${profile.label}"`, { hostId: profile.id });
       }
       onClose();
     } catch (err) {

@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useStore } from "../store/useStore";
 import { normalizeDistroId } from "../utils/distroIcon";
+import { logActivity } from "../lib/activityLog";
 import SSHErrorOverlay, { SSHErrorType } from "./SSHErrorOverlay";
 import LoadingScreen from "./LoadingScreen";
 import { Terminal as TerminalIcon } from "lucide-react";
@@ -195,6 +196,8 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
         instance.sessionId = sessionId;
         setTabSessionId(tabId, sessionId);
         term.clear();
+        const connHost = hosts.find((h) => h.id === hostId);
+        logActivity("connection", "connect", `Connected to ${connHost?.label || hostId}`, { hostId });
 
         // Auto-detect distro in background and update lastConnected
         const rawId = await invoke<string>("detect_distro", { hostId });
@@ -220,6 +223,8 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
 
         setSshError({ type, message: errMsg });
         term.write(`\r\n\x1b[31mConnection failed: ${errMsg}\x1b[0m\r\n`);
+        const errHost = hosts.find((h) => h.id === hostId);
+        logActivity("connection", "error", `Connection to ${errHost?.label || hostId} failed: ${errMsg}`, { hostId });
       }
     };
 

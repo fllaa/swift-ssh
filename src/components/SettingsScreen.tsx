@@ -1,19 +1,23 @@
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { 
-  Key, 
-  Check, 
-  AlertCircle, 
-  Loader2, 
-  Settings, 
-  Monitor, 
-  Terminal, 
-  Lock 
+import { useStore } from "../store/useStore";
+import { logActivity } from "../lib/activityLog";
+import {
+  Key,
+  Check,
+  AlertCircle,
+  Loader2,
+  Settings,
+  Monitor,
+  Terminal,
+  Lock,
+  FileText,
 } from "lucide-react";
 
 type SettingsTab = "security" | "general" | "appearance" | "ssh-sftp";
 
 export default function SettingsScreen() {
+  const { settings, setSettings } = useStore();
   const [activeTab, setActiveTab] = useState<SettingsTab>("security");
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -21,6 +25,26 @@ export default function SettingsScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [logRetentionLimit, setLogRetentionLimit] = useState(settings.logRetentionLimit);
+  const [logRetentionDays, setLogRetentionDays] = useState<number | null>(settings.logRetentionDays);
+  const [settingsSaved, setSettingsSaved] = useState(false);
+
+  useEffect(() => {
+    setLogRetentionLimit(settings.logRetentionLimit);
+    setLogRetentionDays(settings.logRetentionDays);
+  }, [settings]);
+
+  const handleSaveLogSettings = async () => {
+    const newSettings = { ...settings, logRetentionLimit, logRetentionDays };
+    setSettings(newSettings);
+    try {
+      await invoke("save_settings", { settings: newSettings });
+      setSettingsSaved(true);
+      setTimeout(() => setSettingsSaved(false), 2000);
+    } catch (err) {
+      console.error("Failed to save settings:", err);
+    }
+  };
 
   const handleUpdatePassword = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -47,6 +71,7 @@ export default function SettingsScreen() {
       setOldPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      logActivity("vault", "change-password", "Master password changed");
     } catch (err: any) {
       setError(err.toString());
     } finally {
@@ -203,7 +228,81 @@ export default function SettingsScreen() {
               </div>
             )}
 
-            {activeTab !== "security" && (
+            {activeTab === "general" && (
+              <div className="space-y-8">
+                <div>
+                  <h2 className="text-2xl font-bold flex items-center gap-3">
+                    <div className="p-2 bg-blue-600/10 rounded-lg text-blue-400 border border-blue-500/20">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    Log Retention
+                  </h2>
+                  <p className="text-slate-400 mt-3 leading-relaxed max-w-lg">
+                    Configure how many log entries to keep and how long to retain them.
+                  </p>
+                </div>
+
+                <div className="space-y-6 max-w-md">
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">
+                      Maximum Log Entries
+                    </label>
+                    <select
+                      value={logRetentionLimit}
+                      onChange={(e) => setLogRetentionLimit(Number(e.target.value))}
+                      className="w-full bg-navy-sidebar border border-white/10 rounded-xl px-4 py-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all text-slate-100 appearance-none cursor-pointer"
+                    >
+                      <option value={100}>100 entries</option>
+                      <option value={250}>250 entries</option>
+                      <option value={500}>500 entries</option>
+                      <option value={1000}>1,000 entries</option>
+                    </select>
+                    <p className="text-xs text-slate-600 pl-1">
+                      Older entries will be automatically removed when the limit is reached.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">
+                      Auto-clear After
+                    </label>
+                    <select
+                      value={logRetentionDays ?? "never"}
+                      onChange={(e) =>
+                        setLogRetentionDays(
+                          e.target.value === "never" ? null : Number(e.target.value),
+                        )
+                      }
+                      className="w-full bg-navy-sidebar border border-white/10 rounded-xl px-4 py-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all text-slate-100 appearance-none cursor-pointer"
+                    >
+                      <option value="never">Never</option>
+                      <option value={7}>7 days</option>
+                      <option value={30}>30 days</option>
+                      <option value={90}>90 days</option>
+                    </select>
+                    <p className="text-xs text-slate-600 pl-1">
+                      Entries older than this will be pruned on app startup.
+                    </p>
+                  </div>
+
+                  {settingsSaved && (
+                    <div className="flex items-center gap-3 text-sm text-green-400 bg-green-400/5 p-4 rounded-xl border border-green-400/10 animate-in zoom-in-95 duration-200">
+                      <Check className="w-5 h-5 shrink-0" />
+                      Log retention settings saved.
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleSaveLogSettings}
+                    className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3.5 rounded-xl transition-all flex items-center justify-center gap-3 mt-6 shadow-xl shadow-blue-600/20 active:scale-[0.98]"
+                  >
+                    Save Settings
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTab !== "security" && activeTab !== "general" && (
               <div className="flex flex-col items-center justify-center h-full text-center space-y-4 py-20">
                 <div className="p-6 bg-white/5 rounded-full text-slate-500">
                   <Settings className="w-12 h-12 animate-pulse" />

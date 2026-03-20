@@ -36,6 +36,8 @@ import UnlockModal from "./components/UnlockModal";
 import PortForwardingScreen from "./components/PortForwardingScreen";
 import AddPortForwardingModal from "./components/AddPortForwardingModal";
 import SnippetsScreen from "./components/SnippetsScreen";
+import LogsScreen from "./components/LogsScreen";
+import { logActivity } from "./lib/activityLog";
 import LayoutRenderer from "./components/LayoutRenderer";
 import SnippetsSidebar from "./components/SnippetsSidebar";
 import SettingsScreen from "./components/SettingsScreen";
@@ -150,6 +152,23 @@ export default function App() {
         useStore.getState().setSnippets(snippets);
       })
       .catch(console.error);
+    invoke<any[]>("list_logs")
+      .then((logs) => {
+        const state = useStore.getState();
+        // Prune logs older than retention days if set
+        const retentionDays = state.settings.logRetentionDays;
+        if (retentionDays) {
+          const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
+          logs = logs.filter((l: any) => l.timestamp >= cutoff);
+        }
+        state.setLogs(logs);
+      })
+      .catch(console.error);
+    invoke<any>("get_settings")
+      .then((settings) => {
+        useStore.getState().setSettings(settings);
+      })
+      .catch(console.error);
   }, [vaultUnlocked]);
 
   // Listen for SSH disconnect events
@@ -159,6 +178,10 @@ export default function App() {
       (event) => {
         const sid = event.payload.sessionId;
         markDisconnected(sid);
+        const disconnectedSession = useStore.getState().sessions.find(s => s.sessionId === sid);
+        if (disconnectedSession) {
+          logActivity("connection", "disconnect", `Session disconnected: ${disconnectedSession.label}`, { sessionId: sid });
+        }
 
         // Also cleanup forwarder state if this was a background tunnel
         const state = useStore.getState();
@@ -352,6 +375,7 @@ export default function App() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
+                      logActivity("tab", "close", `Closed tab "${tab.label}"`);
                       removeTab(tab.id);
                     }}
                     className={`ml-1 transition-opacity duration-200 ${isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"} text-slate-500 hover:text-white`}
@@ -451,6 +475,8 @@ export default function App() {
             <button
               className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-3 transition-colors"
               onClick={() => {
+                const closedTab = tabs.find(t => t.id === tabContextMenu.tabId);
+                logActivity("tab", "close", `Closed tab "${closedTab?.label || tabContextMenu.tabId}"`);
                 removeTab(tabContextMenu.tabId);
                 setTabContextMenu(null);
               }}
@@ -578,6 +604,10 @@ export default function App() {
             {activeTabId === null && sidebarView === "snippets" && (
               <SnippetsScreen />
             )}
+
+            {activeTabId === null && sidebarView === "logs" && (
+              <LogsScreen />
+            )}
           </div>
         </main>
       </div>
@@ -643,6 +673,7 @@ export default function App() {
               connected: false,
               type: "terminal",
             });
+            logActivity("tab", "open", `Opened tab for ${host.label || host.hostname}`, { hostId: host.id });
             setShowNewTabModal(false);
           }}
         />

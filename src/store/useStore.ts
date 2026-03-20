@@ -56,6 +56,32 @@ export interface Snippet {
   tags?: string;
 }
 
+export type LogCategory =
+  | "connection"
+  | "host"
+  | "key"
+  | "group"
+  | "snippet"
+  | "port-forwarding"
+  | "tab"
+  | "sftp"
+  | "vault"
+  | "terminal";
+
+export interface LogEntry {
+  id: string;
+  timestamp: number;
+  category: LogCategory;
+  action: string;
+  description: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface AppSettings {
+  logRetentionLimit: number;
+  logRetentionDays: number | null;
+}
+
 export interface TabSession {
   tabId: string; // unique session ID
   sessionId: string | null; // SSH session ID from backend
@@ -114,7 +140,7 @@ interface AppState {
   tabs: TabGroup[]; // Top-level tabs
   activeTabId: string | null; // active TabGroup ID
   sessions: TabSession[]; // All active sessions across all tabs
-  sidebarView: "hosts" | "keys" | "port-forwarding" | "snippets";
+  sidebarView: "hosts" | "keys" | "port-forwarding" | "snippets" | "logs";
   dashboardViewMode: "grid" | "list";
   transfers: Transfer[];
   portForwardingRules: PortForwardingRule[];
@@ -122,6 +148,8 @@ interface AppState {
   snippets: Snippet[];
   snippetsOpen: boolean;
   history: string[];
+  logs: LogEntry[];
+  settings: AppSettings;
 
   setHosts: (hosts: HostProfile[]) => void;
   addHost: (host: HostProfile) => void;
@@ -159,7 +187,7 @@ interface AppState {
   markDisconnected: (sessionId: string) => void;
   renameTab: (tabId: string, label: string) => void;
   setSidebarView: (
-    view: "hosts" | "keys" | "port-forwarding" | "snippets",
+    view: "hosts" | "keys" | "port-forwarding" | "snippets" | "logs",
   ) => void;
   setDashboardViewMode: (mode: "grid" | "list") => void;
 
@@ -181,6 +209,11 @@ interface AppState {
   removeSnippet: (id: string) => void;
   setSnippetsOpen: (open: boolean) => void;
   addToHistory: (command: string) => void;
+
+  setLogs: (logs: LogEntry[]) => void;
+  addLog: (entry: LogEntry) => void;
+  clearLogs: () => void;
+  setSettings: (settings: AppSettings) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -200,6 +233,8 @@ export const useStore = create<AppState>((set) => ({
   snippets: [],
   snippetsOpen: false,
   history: [],
+  logs: [],
+  settings: { logRetentionLimit: 500, logRetentionDays: null },
   isDraggingTab: false,
 
   setHosts: (hosts) => set({ hosts }),
@@ -392,6 +427,14 @@ export const useStore = create<AppState>((set) => ({
       
       return { history: newHistory };
     }),
+  setLogs: (logs) => set({ logs }),
+  addLog: (entry) =>
+    set((s) => {
+      const newLogs = [entry, ...s.logs].slice(0, s.settings.logRetentionLimit);
+      return { logs: newLogs };
+    }),
+  clearLogs: () => set({ logs: [] }),
+  setSettings: (settings) => set({ settings }),
   setIsDraggingTab: (isDragging) => set({ isDraggingTab: isDragging }),
 }));
 

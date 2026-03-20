@@ -53,6 +53,11 @@ pub fn run() {
             delete_snippet,
             change_vault_password,
             open_settings_window,
+            list_logs,
+            save_log,
+            clear_logs,
+            get_settings,
+            save_settings,
         ])
         .setup(|app| {
             let bridge = Arc::new(Mutex::new(SshBridge::new(app.handle().clone())));
@@ -517,6 +522,82 @@ async fn delete_snippet(id: String) -> Result<(), String> {
     let mut snippets: Vec<serde_json::Value> = serde_json::from_str(&data).unwrap_or_default();
     snippets.retain(|s| s.get("id").and_then(|v| v.as_str()) != Some(&id));
     let data = serde_json::to_string_pretty(&snippets).map_err(|e| e.to_string())?;
+    std::fs::write(&path, data).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// ── Logs CRUD ─────────────────────────────────────────
+
+#[tauri::command]
+async fn list_logs() -> Result<Vec<serde_json::Value>, String> {
+    let storage = ssh_bridge::storage_dir();
+    let path = storage.join("logs.json");
+    if !path.exists() {
+        return Ok(vec![]);
+    }
+    let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let logs: Vec<serde_json::Value> = serde_json::from_str(&data).map_err(|e| e.to_string())?;
+    Ok(logs)
+}
+
+#[tauri::command]
+async fn save_log(log: serde_json::Value, limit: Option<usize>) -> Result<(), String> {
+    let storage = ssh_bridge::storage_dir();
+    std::fs::create_dir_all(&storage).map_err(|e| e.to_string())?;
+    let path = storage.join("logs.json");
+
+    let mut logs: Vec<serde_json::Value> = if path.exists() {
+        let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&data).unwrap_or_default()
+    } else {
+        vec![]
+    };
+
+    // Prepend new log entry
+    logs.insert(0, log);
+
+    // Cap at limit (default 500)
+    let max = limit.unwrap_or(500);
+    logs.truncate(max);
+
+    let data = serde_json::to_string_pretty(&logs).map_err(|e| e.to_string())?;
+    std::fs::write(&path, data).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn clear_logs() -> Result<(), String> {
+    let storage = ssh_bridge::storage_dir();
+    let path = storage.join("logs.json");
+    if path.exists() {
+        std::fs::write(&path, "[]").map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+// ── Settings CRUD ─────────────────────────────────────
+
+#[tauri::command]
+async fn get_settings() -> Result<serde_json::Value, String> {
+    let storage = ssh_bridge::storage_dir();
+    let path = storage.join("settings.json");
+    if !path.exists() {
+        return Ok(serde_json::json!({
+            "logRetentionLimit": 500,
+            "logRetentionDays": null
+        }));
+    }
+    let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let settings: serde_json::Value = serde_json::from_str(&data).map_err(|e| e.to_string())?;
+    Ok(settings)
+}
+
+#[tauri::command]
+async fn save_settings(settings: serde_json::Value) -> Result<(), String> {
+    let storage = ssh_bridge::storage_dir();
+    std::fs::create_dir_all(&storage).map_err(|e| e.to_string())?;
+    let path = storage.join("settings.json");
+    let data = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
     std::fs::write(&path, data).map_err(|e| e.to_string())?;
     Ok(())
 }

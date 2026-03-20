@@ -1,4 +1,5 @@
 import { useStore, HostProfile, Group } from "../store/useStore";
+import { logActivity } from "../lib/activityLog";
 import { v4 as uuidv4 } from "uuid";
 import { invoke } from "@tauri-apps/api/core";
 import { useState, useEffect } from "react";
@@ -61,6 +62,7 @@ export default function Dashboard({ onEditHost, onAddHost, onAddGroup, onEditGro
     try {
       await invoke("delete_host", { host_id: host.id });
       removeHost(host.id);
+      logActivity("host", "delete", `Deleted host "${host.label || host.hostname}"`, { hostId: host.id });
     } catch (err) {
       console.error("Delete failed:", err);
     }
@@ -84,6 +86,7 @@ export default function Dashboard({ onEditHost, onAddHost, onAddGroup, onEditGro
 
     removeGroup(group.id);
     invoke("delete_group", { group_id: group.id }).catch(console.error);
+    logActivity("group", "delete", `Deleted group "${group.name}"`, { groupId: group.id });
   };
 
   const currentGroups = groups.filter(g => g.vaultId === activeVaultId);

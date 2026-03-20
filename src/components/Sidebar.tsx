@@ -1,17 +1,19 @@
 import { useStore, HostProfile } from "../store/useStore";
-import { Server, Key, Shuffle, Terminal, ShieldCheck, FileText } from "lucide-react";
+import { Server, Key, Shuffle, Terminal, FileText } from "lucide-react";
 
 interface SidebarProps {
   readonly onAddHost: () => void;
   readonly onEditHost: (host: HostProfile) => void;
 }
 
-
 export default function Sidebar({ onAddHost, onEditHost }: SidebarProps) {
   const { sidebarView, setSidebarView } = useStore();
 
   return (
-    <aside className="w-64 bg-navy-sidebar shrink-0 flex flex-col border-r border-slate-800" data-purpose="navigation-sidebar">
+    <aside
+      className="w-64 bg-navy-sidebar shrink-0 flex flex-col border-r border-slate-800"
+      data-purpose="navigation-sidebar"
+    >
       {/* Navigation Items */}
       <nav className="flex-1 px-4 space-y-1 overflow-y-auto mt-4">
         <button
@@ -58,11 +60,14 @@ export default function Sidebar({ onAddHost, onEditHost }: SidebarProps) {
           <Terminal className="w-4 h-4" />
           <span>Snippets</span>
         </button>
-        <button className="w-full flex items-center space-x-3 px-3 py-2 text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition-all">
-          <ShieldCheck className="w-4 h-4" />
-          <span>Known Hosts</span>
-        </button>
-        <button className="w-full flex items-center space-x-3 px-3 py-2 text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 rounded-md transition-all">
+        <button
+          onClick={() => setSidebarView("logs")}
+          className={`w-full flex items-center space-x-3 px-3 py-2 text-sm font-medium rounded-r-md transition-all ${
+            sidebarView === "logs"
+              ? "bg-accent-blue/10 text-accent-blue border-l-2 border-accent-blue"
+              : "text-slate-400 hover:text-white hover:bg-slate-800"
+          }`}
+        >
           <FileText className="w-4 h-4" />
           <span>Logs</span>
         </button>
