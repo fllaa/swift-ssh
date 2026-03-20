@@ -352,8 +352,8 @@ The Rust backend couldn't find or execute `python3`. Make sure:
 - [x] Encrypted storage for passwords and keys (OS keychain integration)
 - [x] SSH agent forwarding
 - [x] Port forwarding (local/remote tunnels)
-- [ ] Snippet / command library
-- [ ] Multi-hop / jump host support
+- [x] Snippet / command library
+- [x] Multi-hop / jump host support
 - [ ] Session logging / export
 - [ ] Theme customization
 

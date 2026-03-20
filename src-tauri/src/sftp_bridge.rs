@@ -72,6 +72,43 @@ impl SftpBridge {
             }
         }
 
+        // --- Jump Host Support ---
+        let mut jump_host_json: Option<String> = None;
+        let mut jump_key_content: Option<String> = None;
+
+        if let Some(jump_id) = host.get("jumpHostId").and_then(|v| v.as_str()) {
+            if !jump_id.is_empty() {
+                let mut jump_host = hosts
+                    .iter()
+                    .find(|h| h.get("id").and_then(|v| v.as_str()) == Some(jump_id))
+                    .ok_or("Jump host not found")?
+                    .clone();
+
+                if let Some(key) = enc_key {
+                    let _ = secure_storage::decrypt_sensitive_fields(&mut jump_host, key, &["password"]);
+                }
+
+                if jump_host.get("authMethod").and_then(|v| v.as_str()) == Some("key") {
+                    if let Some(key_id) = jump_host.get("keyId").and_then(|v| v.as_str()) {
+                        let keys_path = storage.join("keys.json");
+                        if keys_path.exists() {
+                            let kdata = std::fs::read_to_string(&keys_path).map_err(|e| e.to_string())?;
+                            let mut keys: Vec<Value> = serde_json::from_str(&kdata).unwrap_or_default();
+                            if let Some(ek) = enc_key {
+                                for k in keys.iter_mut() {
+                                    let _ = secure_storage::decrypt_sensitive_fields(k, ek, &["privateKey"]);
+                                }
+                            }
+                            if let Some(key) = keys.iter().find(|k| k.get("id").and_then(|v| v.as_str()) == Some(key_id)) {
+                                jump_key_content = key.get("privateKey").and_then(|v| v.as_str()).map(|s| s.to_string());
+                            }
+                        }
+                    }
+                }
+                jump_host_json = Some(serde_json::to_string(&jump_host).unwrap_or_default());
+            }
+        }
+
         let host_json = serde_json::to_string(&host).map_err(|e| e.to_string())?;
         let (python_bin, script) = ssh_bridge::sidecar_paths_for("sftp.py");
         let python_str = python_bin.to_str().unwrap_or("python3");
@@ -96,6 +133,14 @@ impl SftpBridge {
 
         if let Some(ref kc) = key_content {
             cmd.arg("--key-content").arg(kc);
+        }
+
+        if let Some(jhj) = jump_host_json {
+            cmd.arg("--jump-host-json").arg(jhj);
+        }
+
+        if let Some(jkc) = jump_key_content {
+            cmd.arg("--jump-key-content").arg(jkc);
         }
 
         let mut child = cmd

@@ -13,6 +13,7 @@ import {
   Search,
   Check,
   ChevronsUpDown,
+  Shield,
 } from "lucide-react";
 import { message } from "@tauri-apps/plugin-dialog";
 
@@ -22,7 +23,7 @@ interface AddHostModalProps {
 }
 
 export default function AddHostModal({ host, onClose }: AddHostModalProps) {
-  const { addHost, updateHost, keys, groups } = useStore();
+  const { addHost, updateHost, keys, groups, hosts: allHosts } = useStore();
   const isEdit = !!host;
 
   const [label, setLabel] = useState(host?.label ?? "");
@@ -37,6 +38,7 @@ export default function AddHostModal({ host, onClose }: AddHostModalProps) {
   const [keyId, setKeyId] = useState(host?.keyId ?? "");
   
   const [tags, setTags] = useState(host?.tags ?? "");
+  const [jumpHostId, setJumpHostId] = useState(host?.jumpHostId ?? "");
   const [agentForwarding, setAgentForwarding] = useState(host?.agentForwarding ?? false);
   const [showAdvanced, setShowAdvanced] = useState(true);
   
@@ -74,6 +76,7 @@ export default function AddHostModal({ host, onClose }: AddHostModalProps) {
     authMethod,
     groupId,
     tags,
+    jumpHostId,
     agentForwarding,
     ...(authMethod === "password" ? { password } : { keyId }),
   });
@@ -353,6 +356,35 @@ export default function AddHostModal({ host, onClose }: AddHostModalProps) {
             
             {showAdvanced && (
               <div className="mt-4">
+                 <div className="mt-4 mb-6">
+                  <label className="block text-sm font-semibold text-slate-300 mb-1.5 flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-slate-500" />
+                    Jump Host
+                  </label>
+                  <div className="relative">
+                    <select
+                      className="w-full bg-space-dark border border-slate-800 rounded-xl text-white px-4 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-12 outline-none transition-all appearance-none"
+                      value={jumpHostId}
+                      onChange={(e) => setJumpHostId(e.target.value)}
+                    >
+                      <option value="">None (Direct Connection)</option>
+                      {allHosts
+                        .filter((h) => h.id !== host?.id)
+                        .map((h) => (
+                          <option key={h.id} value={h.id}>
+                            {h.label} ({h.username}@{h.hostname})
+                          </option>
+                        ))}
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <ChevronDown className="w-5 h-5 text-slate-500" />
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2">
+                    Connect through another host as a proxy / bastion host.
+                  </p>
+                </div>
+
                 <label className="block text-sm font-semibold text-slate-300 mb-1.5">Tags</label>
                 <input
                   className="w-full bg-space-dark border border-slate-800 rounded-xl text-white placeholder:text-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 h-12 px-4 outline-none transition-all"

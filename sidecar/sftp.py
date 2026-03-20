@@ -28,6 +28,24 @@ def log(msg: str):
     sys.stderr.flush()
 
 
+def get_pkey(key_content):
+    if not key_content: return None
+    tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".pem", delete=False)
+    tmp.write(key_content)
+    tmp.close()
+    try:
+        try:
+            return paramiko.RSAKey.from_private_key_file(tmp.name)
+        except paramiko.ssh_exception.SSHException:
+            try:
+                return paramiko.Ed25519Key.from_private_key_file(tmp.name)
+            except Exception:
+                return paramiko.ECDSAKey.from_private_key_file(tmp.name)
+    finally:
+        if os.path.exists(tmp.name):
+            os.unlink(tmp.name)
+
+
 def emit(data: dict):
     """Write a JSON line to stdout."""
     sys.stdout.write(json.dumps(data) + "\n")
@@ -217,6 +235,8 @@ def main():
     parser.add_argument("--host-json", required=True, help="JSON host profile")
     parser.add_argument("--session-id", required=True, help="Session ID")
     parser.add_argument("--key-content", default=None, help="Private key content")
+    parser.add_argument("--jump-host-json", default=None, help="JSON jump host profile")
+    parser.add_argument("--jump-key-content", default=None, help="Jump host private key content")
     args = parser.parse_args()
 
     host = json.loads(args.host_json)
@@ -256,6 +276,48 @@ def main():
             connect_kwargs["pkey"] = pkey
         else:
             connect_kwargs["password"] = password
+
+        # --- Jump Host Support ---
+        jump_host_json = args.jump_host_json
+        jump_client = None
+        if jump_host_json:
+            try:
+                jump_host = json.loads(jump_host_json)
+                jump_hostname = jump_host.get("hostname", "localhost")
+                jump_port = int(jump_host.get("port", 22))
+                jump_username = jump_host.get("username", "root")
+                jump_auth_method = jump_host.get("authMethod", "password")
+                jump_password = jump_host.get("password", "")
+                
+                log(f"connecting to jump host {jump_username}@{jump_hostname}:{jump_port}")
+                jump_client = paramiko.SSHClient()
+                jump_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                
+                jump_connect_kwargs = {
+                    "hostname": jump_hostname,
+                    "port": jump_port,
+                    "username": jump_username,
+                    "timeout": 15,
+                    "look_for_keys": False,
+                }
+                if jump_auth_method == "key" and args.jump_key_content:
+                    jump_connect_kwargs["pkey"] = get_pkey(args.jump_key_content)
+                else:
+                    jump_connect_kwargs["password"] = jump_password
+                
+                jump_client.connect(**jump_connect_kwargs)
+                log("jump host connected")
+                
+                jump_transport = jump_client.get_transport()
+                dest_addr = (hostname, port)
+                local_addr = ('', 0)
+                channel = jump_transport.open_channel("direct-tcpip", dest_addr, local_addr)
+                connect_kwargs["sock"] = channel
+                log(f"opened tunnel through jump host to {hostname}:{port}")
+            except Exception as e:
+                log(f"Jump host connection failed: {e}")
+                emit_status(f"error:Jump host connection failed: {e}")
+                sys.exit(1)
 
         client.connect(**connect_kwargs)
         log("SSH connected, opening SFTP channel")

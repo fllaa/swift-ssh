@@ -14,6 +14,7 @@ export interface HostProfile {
   osIcon?: string;
   lastConnected?: number;
   agentForwarding?: boolean;
+  jumpHostId?: string;
 }
 
 export interface PortForwardingRule {
