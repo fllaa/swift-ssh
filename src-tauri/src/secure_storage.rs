@@ -56,7 +56,7 @@ impl SecureVault {
         let meta = VaultMeta {
             salt: base64::Engine::encode(
                 &base64::engine::general_purpose::STANDARD,
-                &salt,
+                salt,
             ),
             verify_hash,
         };
@@ -168,7 +168,7 @@ impl SecureVault {
         let new_meta = VaultMeta {
             salt: base64::Engine::encode(
                 &base64::engine::general_purpose::STANDARD,
-                &new_salt,
+                new_salt,
             ),
             verify_hash: new_verify_hash,
         };
@@ -228,8 +228,7 @@ pub fn decrypt_sensitive_fields(json: &mut Value, key: &[u8; 32], fields: &[&str
     if let Some(obj) = json.as_object_mut() {
         for &field in fields {
             if let Some(Value::String(val)) = obj.get(field) {
-                if val.starts_with(ENCRYPTED_PREFIX) {
-                    let ciphertext = &val[ENCRYPTED_PREFIX.len()..];
+                if let Some(ciphertext) = val.strip_prefix(ENCRYPTED_PREFIX) {
                     let decrypted = crypto::decrypt(ciphertext, key)?;
                     obj.insert(field.to_string(), Value::String(decrypted));
                 }

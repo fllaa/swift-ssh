@@ -9,6 +9,7 @@ use ssh_bridge::SshBridge;
 use std::sync::Arc;
 use tauri::Manager;
 use tauri::Emitter;
+#[cfg(target_os = "macos")]
 use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tokio::sync::Mutex;
 
@@ -735,8 +736,8 @@ async fn test_connection(
 
     if stdout == "OK" {
         Ok("Connection successful".to_string())
-    } else if stdout.starts_with("FAIL:") {
-        Err(stdout[5..].to_string())
+    } else if let Some(stripped) = stdout.strip_prefix("FAIL:") {
+        Err(stripped.to_string())
     } else if stdout.is_empty() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
         Err(if stderr.is_empty() { "Unknown error".to_string() } else { stderr })

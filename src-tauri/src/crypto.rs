@@ -106,7 +106,7 @@ pub fn create_verify_hash(password: &str, salt: &[u8]) -> Result<String, String>
         .hash_password_into(password.as_bytes(), &verify_salt, &mut verify_key)
         .map_err(|e| format!("Argon2 verify hash error: {}", e))?;
 
-    Ok(base64::engine::general_purpose::STANDARD.encode(&verify_key))
+    Ok(base64::engine::general_purpose::STANDARD.encode(verify_key))
 }
 
 /// Check if a password matches the stored verification hash.

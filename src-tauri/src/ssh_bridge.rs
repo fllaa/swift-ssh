@@ -362,7 +362,7 @@ impl SshBridge {
                 "rules": rules
             });
             let mut stdin = &session.stdin;
-            let line = format!("{}\n", msg.to_string());
+            let line = format!("{}\n", msg);
             stdin.write_all(line.as_bytes()).map_err(|e| e.to_string())?;
             stdin.flush().map_err(|e| e.to_string())?;
             Ok(())
@@ -403,7 +403,7 @@ impl SshBridge {
                 "rows": rows
             });
             let mut stdin = &session.stdin;
-            let line = format!("{}\n", msg.to_string());
+            let line = format!("{}\n", msg);
             stdin.write_all(line.as_bytes()).map_err(|e| e.to_string())?;
             stdin.flush().map_err(|e| e.to_string())?;
             Ok(())
