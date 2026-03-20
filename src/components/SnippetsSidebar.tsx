@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, Send, Terminal as TerminalIcon, X } from "lucide-react";
+import { Search, Send, Terminal as TerminalIcon, X, Code, Plus } from "lucide-react";
 import { useStore } from "../store/useStore";
 import { invoke } from "@tauri-apps/api/core";
 
 export default function SnippetsSidebar() {
-  const { snippets, snippetsOpen, setSnippetsOpen, activePaneId } = useStore();
+  const { snippets, snippetsOpen, setSnippetsOpen, activePaneId, history } = useStore();
   const [snippetSearch, setSnippetSearch] = useState("");
   const sidebarRef = useRef<HTMLDivElement>(null);
 
@@ -104,8 +104,32 @@ export default function SnippetsSidebar() {
           ))
         }
         {snippets.length === 0 && (
-          <div className="p-8 text-center">
-            <p className="text-gray-500 text-xs">No snippets saved yet.</p>
+          <div className="p-8 text-center text-gray-500 text-xs">
+            No snippets saved yet.
+          </div>
+        )}
+
+        {/* Recent History Section */}
+        {history.length > 0 && (
+          <div className="mt-6 pt-4 border-t border-white/5 pb-10">
+            <div className="px-3 mb-3 flex items-center gap-2 text-gray-400 text-[10px] font-bold uppercase tracking-widest">
+              <Code className="w-3 h-3" />
+              Recent History
+            </div>
+            <div className="space-y-1">
+              {history.map((cmd, idx) => (
+                <button
+                  key={`history-${idx}`}
+                  onClick={() => insertSnippet(cmd)}
+                  className="w-full text-left p-2.5 px-3 rounded-lg hover:bg-white/5 group transition-colors flex items-center justify-between"
+                >
+                  <div className="flex-1 min-w-0 font-mono text-[11px] text-blue-300 opacity-70 group-hover:opacity-100 truncate">
+                    {cmd}
+                  </div>
+                  <Plus className="w-3 h-3 text-gray-600 group-hover:text-blue-400 transition-colors opacity-0 group-hover:opacity-100" />
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>

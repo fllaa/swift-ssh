@@ -121,6 +121,7 @@ interface AppState {
   forwardingSessions: Record<string, string>; // hostId -> sessionId
   snippets: Snippet[];
   snippetsOpen: boolean;
+  history: string[];
 
   setHosts: (hosts: HostProfile[]) => void;
   addHost: (host: HostProfile) => void;
@@ -179,6 +180,7 @@ interface AppState {
   updateSnippet: (snippet: Snippet) => void;
   removeSnippet: (id: string) => void;
   setSnippetsOpen: (open: boolean) => void;
+  addToHistory: (command: string) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -197,6 +199,7 @@ export const useStore = create<AppState>((set) => ({
   forwardingSessions: {},
   snippets: [],
   snippetsOpen: false,
+  history: [],
   isDraggingTab: false,
 
   setHosts: (hosts) => set({ hosts }),
@@ -377,8 +380,19 @@ export const useStore = create<AppState>((set) => ({
     })),
   removeSnippet: (id) =>
     set((s) => ({ snippets: s.snippets.filter((snip) => snip.id !== id) })),
-  setIsDraggingTab: (isDragging) => set({ isDraggingTab: isDragging }),
   setSnippetsOpen: (snippetsOpen) => set({ snippetsOpen }),
+  addToHistory: (command) =>
+    set((s) => {
+      const trimmed = command.trim();
+      if (!trimmed) return s;
+
+      // Remove existing item if present to ensure uniqueness and move to top
+      const filtered = s.history.filter((h) => h !== trimmed);
+      const newHistory = [trimmed, ...filtered].slice(0, 100);
+      
+      return { history: newHistory };
+    }),
+  setIsDraggingTab: (isDragging) => set({ isDraggingTab: isDragging }),
 }));
 
 // Helper to remove a sessionId from a layout and return the new layout

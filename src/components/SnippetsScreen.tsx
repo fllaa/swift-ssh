@@ -13,7 +13,7 @@ import { invoke } from "@tauri-apps/api/core";
 import AddSnippetModal from "./AddSnippetModal";
 
 const SnippetsScreen: React.FC = () => {
-  const { snippets, removeSnippet, dashboardViewMode } = useStore();
+  const { snippets, removeSnippet, dashboardViewMode, history, addSnippet } = useStore();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingSnippet, setEditingSnippet] = useState<Snippet | undefined>(undefined);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -154,6 +154,67 @@ const SnippetsScreen: React.FC = () => {
             <span className="text-sm font-medium text-slate-500">New Snippet</span>
           </div>
         </div>
+
+        {/* History Section */}
+        {history.length > 0 && (
+          <div className="mt-12">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                  <Terminal className="w-5 h-5 text-blue-400" />
+                  Command History
+                </h2>
+                <p className="text-gray-400 text-sm mt-1">Recently executed commands from your terminals</p>
+              </div>
+              <div className="text-xs text-slate-500 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700/50">
+                {history.length} items
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {history.map((cmd, idx) => (
+                <div 
+                  key={`history-${idx}`}
+                  className="bg-[#1e2130]/30 border border-[#2a2d3e] rounded-xl p-3 flex items-center justify-between group hover:border-blue-500/30 transition-all"
+                >
+                  <div className="flex-1 min-w-0 mr-4">
+                    <div className="font-mono text-xs text-blue-300 truncate">
+                      {cmd}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => handleCopy(cmd, `history-${idx}`, e)}
+                      className="p-1.5 text-gray-400 hover:text-white hover:bg-white/5 rounded-md transition-colors"
+                      title="Copy to clipboard"
+                    >
+                      {copiedId === `history-${idx}` ? (
+                        <Check className="w-3.5 h-3.5 text-green-400" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        const newSnippet: Snippet = {
+                          id: crypto.randomUUID(),
+                          name: cmd.length > 20 ? cmd.substring(0, 20) + "..." : cmd,
+                          content: cmd,
+                        };
+                        addSnippet(newSnippet);
+                        invoke("save_snippet", { snippet: newSnippet }).catch(console.error);
+                      }}
+                      className="p-1.5 text-gray-400 hover:text-blue-400 hover:bg-blue-400/5 rounded-md transition-colors"
+                      title="Save as snippet"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {isAddModalOpen && (

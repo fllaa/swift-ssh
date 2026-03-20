@@ -115,8 +115,25 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
       element: wrapperEl,
     };
 
+    const addToHistory = useStore.getState().addToHistory;
+    const commandBuffer = { current: "" };
+
     // Send input to sidecar
     term.onData((data) => {
+      // Best-effort history capture
+      for (const char of data) {
+        if (char === "\r" || char === "\n") {
+          if (commandBuffer.current.trim()) {
+            addToHistory(commandBuffer.current.trim());
+          }
+          commandBuffer.current = "";
+        } else if (char === "\x7f") { // Backspace
+          commandBuffer.current = commandBuffer.current.slice(0, -1);
+        } else if ((char.codePointAt(0) ?? 0) >= 32) { // Printable
+          commandBuffer.current += char;
+        }
+      }
+
       if (instance.sessionId) {
         invoke("send_input", {
           sessionId: instance.sessionId,
