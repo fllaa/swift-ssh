@@ -39,7 +39,9 @@ impl SecureVault {
 
     /// Get the encryption key (panics if locked — callers should check first).
     pub fn get_key(&self) -> Result<&[u8; 32], String> {
-        self.key.as_ref().ok_or_else(|| "Vault is locked".to_string())
+        self.key
+            .as_ref()
+            .ok_or_else(|| "Vault is locked".to_string())
     }
 
     /// Initialize the vault with a new master password.
@@ -54,10 +56,7 @@ impl SecureVault {
         let verify_hash = crypto::create_verify_hash(password, &salt)?;
 
         let meta = VaultMeta {
-            salt: base64::Engine::encode(
-                &base64::engine::general_purpose::STANDARD,
-                salt,
-            ),
+            salt: base64::Engine::encode(&base64::engine::general_purpose::STANDARD, salt),
             verify_hash,
         };
 
@@ -79,11 +78,8 @@ impl SecureVault {
     /// If plaintext data exists (pre-encryption), migrates it automatically.
     pub fn unlock(&mut self, password: &str) -> Result<(), String> {
         let meta = load_meta()?;
-        let salt = base64::Engine::decode(
-            &base64::engine::general_purpose::STANDARD,
-            &meta.salt,
-        )
-        .map_err(|e| format!("Failed to decode salt: {}", e))?;
+        let salt = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &meta.salt)
+            .map_err(|e| format!("Failed to decode salt: {}", e))?;
 
         if !crypto::verify_password(password, &salt, &meta.verify_hash)? {
             return Err("Incorrect password".to_string());
@@ -110,13 +106,14 @@ impl SecureVault {
     }
 
     /// Change the master password and re-encrypt all sensitive data.
-    pub fn change_password(&mut self, old_password: &str, new_password: &str) -> Result<(), String> {
+    pub fn change_password(
+        &mut self,
+        old_password: &str,
+        new_password: &str,
+    ) -> Result<(), String> {
         let meta = load_meta()?;
-        let salt = base64::Engine::decode(
-            &base64::engine::general_purpose::STANDARD,
-            &meta.salt,
-        )
-        .map_err(|e| format!("Failed to decode salt: {}", e))?;
+        let salt = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &meta.salt)
+            .map_err(|e| format!("Failed to decode salt: {}", e))?;
 
         if !crypto::verify_password(old_password, &salt, &meta.verify_hash)? {
             return Err("Incorrect old password".to_string());
@@ -126,7 +123,7 @@ impl SecureVault {
         let storage = ssh_bridge::storage_dir();
 
         // 1. Decrypt all sensitive data with old key
-        
+
         // Hosts
         let hosts_path = storage.join("hosts.json");
         let mut hosts: Vec<Value> = if hosts_path.exists() {
@@ -166,13 +163,10 @@ impl SecureVault {
 
         // 4. Save everything
         let new_meta = VaultMeta {
-            salt: base64::Engine::encode(
-                &base64::engine::general_purpose::STANDARD,
-                new_salt,
-            ),
+            salt: base64::Engine::encode(&base64::engine::general_purpose::STANDARD, new_salt),
             verify_hash: new_verify_hash,
         };
-        
+
         let meta_json = serde_json::to_string_pretty(&new_meta)
             .map_err(|e| format!("Failed to serialize new vault meta: {}", e))?;
         std::fs::write(meta_path(), meta_json).map_err(|e| e.to_string())?;
@@ -207,7 +201,11 @@ fn load_meta() -> Result<VaultMeta, String> {
 
 /// Encrypt specified fields in a JSON value in-place.
 /// Only encrypts non-empty string fields that aren't already encrypted.
-pub fn encrypt_sensitive_fields(json: &mut Value, key: &[u8; 32], fields: &[&str]) -> Result<(), String> {
+pub fn encrypt_sensitive_fields(
+    json: &mut Value,
+    key: &[u8; 32],
+    fields: &[&str],
+) -> Result<(), String> {
     if let Some(obj) = json.as_object_mut() {
         for &field in fields {
             if let Some(Value::String(val)) = obj.get(field) {
@@ -224,7 +222,11 @@ pub fn encrypt_sensitive_fields(json: &mut Value, key: &[u8; 32], fields: &[&str
 
 /// Decrypt specified fields in a JSON value in-place.
 /// Only decrypts fields that have the encrypted prefix.
-pub fn decrypt_sensitive_fields(json: &mut Value, key: &[u8; 32], fields: &[&str]) -> Result<(), String> {
+pub fn decrypt_sensitive_fields(
+    json: &mut Value,
+    key: &[u8; 32],
+    fields: &[&str],
+) -> Result<(), String> {
     if let Some(obj) = json.as_object_mut() {
         for &field in fields {
             if let Some(Value::String(val)) = obj.get(field) {

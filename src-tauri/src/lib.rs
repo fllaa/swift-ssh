@@ -7,10 +7,10 @@ use secure_storage::SecureVault;
 use sftp_bridge::SftpBridge;
 use ssh_bridge::SshBridge;
 use std::sync::Arc;
-use tauri::Manager;
-use tauri::Emitter;
 #[cfg(target_os = "macos")]
 use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
+use tauri::Emitter;
+use tauri::Manager;
 use tokio::sync::Mutex;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -103,9 +103,7 @@ pub fn run() {
                     .select_all()
                     .build()?;
 
-                let view_menu = SubmenuBuilder::new(app, "View")
-                    .fullscreen()
-                    .build()?;
+                let view_menu = SubmenuBuilder::new(app, "View").fullscreen().build()?;
 
                 let window_menu = SubmenuBuilder::new(app, "Window")
                     .minimize()
@@ -165,9 +163,7 @@ async fn unlock_vault(
 }
 
 #[tauri::command]
-async fn lock_vault(
-    vault: tauri::State<'_, Arc<Mutex<SecureVault>>>,
-) -> Result<(), String> {
+async fn lock_vault(vault: tauri::State<'_, Arc<Mutex<SecureVault>>>) -> Result<(), String> {
     let mut v = vault.lock().await;
     v.lock();
     Ok(())
@@ -215,7 +211,8 @@ async fn list_hosts(
         return Ok(vec![]);
     }
     let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let mut hosts: Vec<serde_json::Value> = serde_json::from_str(&data).map_err(|e| e.to_string())?;
+    let mut hosts: Vec<serde_json::Value> =
+        serde_json::from_str(&data).map_err(|e| e.to_string())?;
 
     // Decrypt sensitive fields if vault is unlocked
     let v = vault.lock().await;
@@ -250,8 +247,15 @@ async fn save_host(
         secure_storage::encrypt_sensitive_fields(&mut profile, key, &["password"])?;
     }
 
-    let id = profile.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
-    if let Some(pos) = hosts.iter().position(|h| h.get("id").and_then(|v| v.as_str()) == Some(&id)) {
+    let id = profile
+        .get("id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    if let Some(pos) = hosts
+        .iter()
+        .position(|h| h.get("id").and_then(|v| v.as_str()) == Some(&id))
+    {
         hosts[pos] = profile;
     } else {
         hosts.push(profile);
@@ -289,7 +293,8 @@ async fn list_keys(
         return Ok(vec![]);
     }
     let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let mut keys: Vec<serde_json::Value> = serde_json::from_str(&data).map_err(|e| e.to_string())?;
+    let mut keys: Vec<serde_json::Value> =
+        serde_json::from_str(&data).map_err(|e| e.to_string())?;
 
     // Decrypt sensitive fields if vault is unlocked
     let v = vault.lock().await;
@@ -386,8 +391,15 @@ async fn save_group(group: serde_json::Value) -> Result<(), String> {
         vec![]
     };
 
-    let id = group.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
-    if let Some(pos) = groups.iter().position(|g| g.get("id").and_then(|v| v.as_str()) == Some(&id)) {
+    let id = group
+        .get("id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    if let Some(pos) = groups
+        .iter()
+        .position(|g| g.get("id").and_then(|v| v.as_str()) == Some(&id))
+    {
         groups[pos] = group;
     } else {
         groups.push(group);
@@ -440,8 +452,15 @@ async fn save_port_forwarding_rule(rule: serde_json::Value) -> Result<(), String
         vec![]
     };
 
-    let id = rule.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
-    if let Some(pos) = rules.iter().position(|r| r.get("id").and_then(|v| v.as_str()) == Some(&id)) {
+    let id = rule
+        .get("id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    if let Some(pos) = rules
+        .iter()
+        .position(|r| r.get("id").and_then(|v| v.as_str()) == Some(&id))
+    {
         rules[pos] = rule;
     } else {
         rules.push(rule);
@@ -484,7 +503,8 @@ async fn list_snippets() -> Result<Vec<serde_json::Value>, String> {
         return Ok(vec![]);
     }
     let data = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let snippets: Vec<serde_json::Value> = serde_json::from_str(&data).map_err(|e| e.to_string())?;
+    let snippets: Vec<serde_json::Value> =
+        serde_json::from_str(&data).map_err(|e| e.to_string())?;
     Ok(snippets)
 }
 
@@ -501,8 +521,15 @@ async fn save_snippet(snippet: serde_json::Value) -> Result<(), String> {
         vec![]
     };
 
-    let id = snippet.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
-    if let Some(pos) = snippets.iter().position(|s| s.get("id").and_then(|v| v.as_str()) == Some(&id)) {
+    let id = snippet
+        .get("id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    if let Some(pos) = snippets
+        .iter()
+        .position(|s| s.get("id").and_then(|v| v.as_str()) == Some(&id))
+    {
         snippets[pos] = snippet;
     } else {
         snippets.push(snippet);
@@ -601,7 +628,7 @@ async fn save_settings(app: tauri::AppHandle, settings: serde_json::Value) -> Re
     let path = storage.join("settings.json");
     let data = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
     std::fs::write(&path, data).map_err(|e| e.to_string())?;
-    
+
     // Emit event to all windows
     let _ = app.emit("settings-updated", settings);
     Ok(())
@@ -617,7 +644,8 @@ async fn detect_distro(
     let storage = ssh_bridge::storage_dir();
     let hosts_path = storage.join("hosts.json");
     let data = std::fs::read_to_string(&hosts_path).map_err(|e| e.to_string())?;
-    let mut hosts: Vec<serde_json::Value> = serde_json::from_str(&data).map_err(|e| e.to_string())?;
+    let mut hosts: Vec<serde_json::Value> =
+        serde_json::from_str(&data).map_err(|e| e.to_string())?;
 
     // Decrypt sensitive fields for the target host
     let v = vault.lock().await;
@@ -640,17 +668,25 @@ async fn detect_distro(
             let keys_path = storage.join("keys.json");
             if keys_path.exists() {
                 let kdata = std::fs::read_to_string(&keys_path).map_err(|e| e.to_string())?;
-                let mut keys: Vec<serde_json::Value> = serde_json::from_str(&kdata).unwrap_or_default();
+                let mut keys: Vec<serde_json::Value> =
+                    serde_json::from_str(&kdata).unwrap_or_default();
                 // Decrypt private keys
                 let v2 = vault.lock().await;
                 if let Ok(enc_key) = v2.get_key() {
                     for k in keys.iter_mut() {
-                        let _ = secure_storage::decrypt_sensitive_fields(k, enc_key, &["privateKey"]);
+                        let _ =
+                            secure_storage::decrypt_sensitive_fields(k, enc_key, &["privateKey"]);
                     }
                 }
                 drop(v2);
-                if let Some(key) = keys.iter().find(|k| k.get("id").and_then(|v| v.as_str()) == Some(key_id)) {
-                    key_content = key.get("privateKey").and_then(|v| v.as_str()).map(|s| s.to_string());
+                if let Some(key) = keys
+                    .iter()
+                    .find(|k| k.get("id").and_then(|v| v.as_str()) == Some(key_id))
+                {
+                    key_content = key
+                        .get("privateKey")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string());
                 }
             }
         }
@@ -662,8 +698,10 @@ async fn detect_distro(
     let mut cmd = std::process::Command::new(python_bin.to_str().unwrap_or("python3"));
     cmd.arg("-u")
         .arg(script.to_str().unwrap_or("sidecar/main.py"))
-        .arg("--host-json").arg(&host_json)
-        .arg("--session-id").arg("detect")
+        .arg("--host-json")
+        .arg(&host_json)
+        .arg("--session-id")
+        .arg("detect")
         .arg("--detect-distro")
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
@@ -674,7 +712,9 @@ async fn detect_distro(
         cmd.arg("--key-content").arg(kc);
     }
 
-    let output = cmd.output().map_err(|e| format!("Failed to start sidecar: {}", e))?;
+    let output = cmd
+        .output()
+        .map_err(|e| format!("Failed to start sidecar: {}", e))?;
     let distro_id = String::from_utf8_lossy(&output.stdout).trim().to_string();
     Ok(distro_id)
 }
@@ -696,16 +736,24 @@ async fn test_connection(
             let keys_path = storage.join("keys.json");
             if keys_path.exists() {
                 let kdata = std::fs::read_to_string(&keys_path).map_err(|e| e.to_string())?;
-                let mut keys: Vec<serde_json::Value> = serde_json::from_str(&kdata).unwrap_or_default();
+                let mut keys: Vec<serde_json::Value> =
+                    serde_json::from_str(&kdata).unwrap_or_default();
                 let v = vault.lock().await;
                 if let Ok(enc_key) = v.get_key() {
                     for k in keys.iter_mut() {
-                        let _ = secure_storage::decrypt_sensitive_fields(k, enc_key, &["privateKey"]);
+                        let _ =
+                            secure_storage::decrypt_sensitive_fields(k, enc_key, &["privateKey"]);
                     }
                 }
                 drop(v);
-                if let Some(key) = keys.iter().find(|k| k.get("id").and_then(|v| v.as_str()) == Some(key_id)) {
-                    key_content = key.get("privateKey").and_then(|v| v.as_str()).map(|s| s.to_string());
+                if let Some(key) = keys
+                    .iter()
+                    .find(|k| k.get("id").and_then(|v| v.as_str()) == Some(key_id))
+                {
+                    key_content = key
+                        .get("privateKey")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string());
                 }
             }
         }
@@ -731,7 +779,9 @@ async fn test_connection(
         cmd.arg("--key-content").arg(kc);
     }
 
-    let output = cmd.output().map_err(|e| format!("Failed to start sidecar: {}", e))?;
+    let output = cmd
+        .output()
+        .map_err(|e| format!("Failed to start sidecar: {}", e))?;
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
     if stdout == "OK" {
@@ -740,7 +790,11 @@ async fn test_connection(
         Err(stripped.to_string())
     } else if stdout.is_empty() {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        Err(if stderr.is_empty() { "Unknown error".to_string() } else { stderr })
+        Err(if stderr.is_empty() {
+            "Unknown error".to_string()
+        } else {
+            stderr
+        })
     } else {
         Err(stdout)
     }
@@ -758,7 +812,9 @@ async fn connect_host(
     let v = vault.lock().await;
     let key = v.get_key().ok();
     let mut bridge = state.lock().await;
-    bridge.connect(&host_id, key, no_shell.unwrap_or(false)).await
+    bridge
+        .connect(&host_id, key, no_shell.unwrap_or(false))
+        .await
 }
 
 #[tauri::command]
@@ -873,11 +929,23 @@ async fn list_local_dir(path: String) -> Result<serde_json::Value, String> {
         let (permissions, perm_str) = {
             let ro = metadata.permissions().readonly();
             (
-                if ro { "0444".to_string() } else { "0644".to_string() },
-                if is_dir {
-                    if ro { "dr--r--r--" } else { "drwxr-xr-x" }
+                if ro {
+                    "0444".to_string()
                 } else {
-                    if ro { "-r--r--r--" } else { "-rw-r--r--" }
+                    "0644".to_string()
+                },
+                if is_dir {
+                    if ro {
+                        "dr--r--r--"
+                    } else {
+                        "drwxr-xr-x"
+                    }
+                } else {
+                    if ro {
+                        "-r--r--r--"
+                    } else {
+                        "-rw-r--r--"
+                    }
                 }
                 .to_string(),
             )

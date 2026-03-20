@@ -25,7 +25,11 @@ impl SftpBridge {
         }
     }
 
-    pub async fn connect(&mut self, host_id: &str, enc_key: Option<&[u8; 32]>) -> Result<String, String> {
+    pub async fn connect(
+        &mut self,
+        host_id: &str,
+        enc_key: Option<&[u8; 32]>,
+    ) -> Result<String, String> {
         eprintln!("[sftp_bridge] connect: host_id={}", host_id);
 
         let storage = ssh_bridge::storage_dir();
@@ -50,13 +54,13 @@ impl SftpBridge {
             if let Some(key_id) = host.get("keyId").and_then(|v| v.as_str()) {
                 let keys_path = storage.join("keys.json");
                 if keys_path.exists() {
-                    let kdata =
-                        std::fs::read_to_string(&keys_path).map_err(|e| e.to_string())?;
+                    let kdata = std::fs::read_to_string(&keys_path).map_err(|e| e.to_string())?;
                     let mut keys: Vec<Value> = serde_json::from_str(&kdata).unwrap_or_default();
                     // Decrypt private key fields
                     if let Some(ek) = enc_key {
                         for k in keys.iter_mut() {
-                            let _ = secure_storage::decrypt_sensitive_fields(k, ek, &["privateKey"]);
+                            let _ =
+                                secure_storage::decrypt_sensitive_fields(k, ek, &["privateKey"]);
                         }
                     }
                     if let Some(key) = keys
@@ -85,22 +89,38 @@ impl SftpBridge {
                     .clone();
 
                 if let Some(key) = enc_key {
-                    let _ = secure_storage::decrypt_sensitive_fields(&mut jump_host, key, &["password"]);
+                    let _ = secure_storage::decrypt_sensitive_fields(
+                        &mut jump_host,
+                        key,
+                        &["password"],
+                    );
                 }
 
                 if jump_host.get("authMethod").and_then(|v| v.as_str()) == Some("key") {
                     if let Some(key_id) = jump_host.get("keyId").and_then(|v| v.as_str()) {
                         let keys_path = storage.join("keys.json");
                         if keys_path.exists() {
-                            let kdata = std::fs::read_to_string(&keys_path).map_err(|e| e.to_string())?;
-                            let mut keys: Vec<Value> = serde_json::from_str(&kdata).unwrap_or_default();
+                            let kdata =
+                                std::fs::read_to_string(&keys_path).map_err(|e| e.to_string())?;
+                            let mut keys: Vec<Value> =
+                                serde_json::from_str(&kdata).unwrap_or_default();
                             if let Some(ek) = enc_key {
                                 for k in keys.iter_mut() {
-                                    let _ = secure_storage::decrypt_sensitive_fields(k, ek, &["privateKey"]);
+                                    let _ = secure_storage::decrypt_sensitive_fields(
+                                        k,
+                                        ek,
+                                        &["privateKey"],
+                                    );
                                 }
                             }
-                            if let Some(key) = keys.iter().find(|k| k.get("id").and_then(|v| v.as_str()) == Some(key_id)) {
-                                jump_key_content = key.get("privateKey").and_then(|v| v.as_str()).map(|s| s.to_string());
+                            if let Some(key) = keys
+                                .iter()
+                                .find(|k| k.get("id").and_then(|v| v.as_str()) == Some(key_id))
+                            {
+                                jump_key_content = key
+                                    .get("privateKey")
+                                    .and_then(|v| v.as_str())
+                                    .map(|s| s.to_string());
                             }
                         }
                     }
@@ -174,10 +194,7 @@ impl SftpBridge {
         let app = self.app.clone();
         let sid = session_id.clone();
         std::thread::spawn(move || {
-            eprintln!(
-                "[sftp_bridge] reader thread started for session {}",
-                sid
-            );
+            eprintln!("[sftp_bridge] reader thread started for session {}", sid);
             let reader = BufReader::new(stdout);
 
             for line in reader.lines() {
@@ -215,10 +232,7 @@ impl SftpBridge {
                                             .get("payload")
                                             .and_then(|v| v.as_str())
                                             .unwrap_or("");
-                                        eprintln!(
-                                            "[sftp_bridge] status: {}",
-                                            payload
-                                        );
+                                        eprintln!("[sftp_bridge] status: {}", payload);
 
                                         if payload == "connected" {
                                             let _ = app.emit(
@@ -231,8 +245,7 @@ impl SftpBridge {
                                                 serde_json::json!({"sessionId": sid}),
                                             );
                                             break;
-                                        } else if let Some(err_msg) =
-                                            payload.strip_prefix("error:")
+                                        } else if let Some(err_msg) = payload.strip_prefix("error:")
                                         {
                                             let _ = app.emit(
                                                 "sftp-disconnected",
@@ -242,10 +255,7 @@ impl SftpBridge {
                                         }
                                     }
                                     _ => {
-                                        eprintln!(
-                                            "[sftp_bridge] unknown msg type: {}",
-                                            msg_type
-                                        );
+                                        eprintln!("[sftp_bridge] unknown msg type: {}", msg_type);
                                     }
                                 }
                             }
@@ -265,14 +275,8 @@ impl SftpBridge {
                 }
             }
 
-            eprintln!(
-                "[sftp_bridge] reader thread ended for session {}",
-                sid
-            );
-            let _ = app.emit(
-                "sftp-disconnected",
-                serde_json::json!({"sessionId": sid}),
-            );
+            eprintln!("[sftp_bridge] reader thread ended for session {}", sid);
+            let _ = app.emit("sftp-disconnected", serde_json::json!({"sessionId": sid}));
         });
 
         self.sessions.insert(
@@ -288,10 +292,7 @@ impl SftpBridge {
     }
 
     pub async fn disconnect(&mut self, session_id: &str) -> Result<(), String> {
-        eprintln!(
-            "[sftp_bridge] disconnect called for session {}",
-            session_id
-        );
+        eprintln!("[sftp_bridge] disconnect called for session {}", session_id);
         if let Some(mut session) = self.sessions.remove(session_id) {
             let _ = session.process.kill();
         }

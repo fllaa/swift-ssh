@@ -15,7 +15,11 @@ pub fn storage_dir() -> PathBuf {
 
 /// Returns the platform-appropriate Python binary name for system fallback.
 fn system_python() -> &'static str {
-    if cfg!(windows) { "python" } else { "python3" }
+    if cfg!(windows) {
+        "python"
+    } else {
+        "python3"
+    }
 }
 
 /// Returns the venv Python path appropriate for the current platform.
@@ -55,13 +59,19 @@ pub fn sidecar_paths_for(script_name: &str) -> (PathBuf, PathBuf) {
             return (prod_venv, prod_script);
         }
         if prod_script.exists() {
-            eprintln!("[ssh_bridge] WARNING: no venv found, using system {}", system_python());
+            eprintln!(
+                "[ssh_bridge] WARNING: no venv found, using system {}",
+                system_python()
+            );
             return (PathBuf::from(system_python()), prod_script);
         }
     }
 
     eprintln!("[ssh_bridge] WARNING: using fallback paths");
-    (PathBuf::from(system_python()), PathBuf::from(format!("sidecar/{}", script_name)))
+    (
+        PathBuf::from(system_python()),
+        PathBuf::from(format!("sidecar/{}", script_name)),
+    )
 }
 
 /// Convenience: returns paths for the SSH terminal sidecar (main.py).
@@ -88,7 +98,12 @@ impl SshBridge {
         }
     }
 
-    pub async fn connect(&mut self, host_id: &str, enc_key: Option<&[u8; 32]>, no_shell: bool) -> Result<String, String> {
+    pub async fn connect(
+        &mut self,
+        host_id: &str,
+        enc_key: Option<&[u8; 32]>,
+        no_shell: bool,
+    ) -> Result<String, String> {
         eprintln!("[ssh_bridge] connect: host_id={}", host_id);
 
         let storage = storage_dir();
@@ -118,11 +133,18 @@ impl SshBridge {
                     // Decrypt private key fields
                     if let Some(ek) = enc_key {
                         for k in keys.iter_mut() {
-                            let _ = secure_storage::decrypt_sensitive_fields(k, ek, &["privateKey"]);
+                            let _ =
+                                secure_storage::decrypt_sensitive_fields(k, ek, &["privateKey"]);
                         }
                     }
-                    if let Some(key) = keys.iter().find(|k| k.get("id").and_then(|v| v.as_str()) == Some(key_id)) {
-                        key_content = key.get("privateKey").and_then(|v| v.as_str()).map(|s| s.to_string());
+                    if let Some(key) = keys
+                        .iter()
+                        .find(|k| k.get("id").and_then(|v| v.as_str()) == Some(key_id))
+                    {
+                        key_content = key
+                            .get("privateKey")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string());
                     }
                 }
             }
@@ -133,8 +155,12 @@ impl SshBridge {
         if rules_path.exists() {
             if let Ok(rdata) = std::fs::read_to_string(&rules_path) {
                 if let Ok(rules) = serde_json::from_str::<Vec<Value>>(&rdata) {
-                    let host_rules: Vec<Value> = rules.into_iter()
-                        .filter(|r| r.get("hostId").and_then(|v| v.as_str()) == Some(host_id) && r.get("enabled").and_then(|v| v.as_bool()) == Some(true))
+                    let host_rules: Vec<Value> = rules
+                        .into_iter()
+                        .filter(|r| {
+                            r.get("hostId").and_then(|v| v.as_str()) == Some(host_id)
+                                && r.get("enabled").and_then(|v| v.as_bool()) == Some(true)
+                        })
                         .collect();
                     if !host_rules.is_empty() {
                         rules_json = Some(serde_json::to_string(&host_rules).unwrap_or_default());
@@ -156,22 +182,38 @@ impl SshBridge {
                     .clone();
 
                 if let Some(key) = enc_key {
-                    let _ = secure_storage::decrypt_sensitive_fields(&mut jump_host, key, &["password"]);
+                    let _ = secure_storage::decrypt_sensitive_fields(
+                        &mut jump_host,
+                        key,
+                        &["password"],
+                    );
                 }
 
                 if jump_host.get("authMethod").and_then(|v| v.as_str()) == Some("key") {
                     if let Some(key_id) = jump_host.get("keyId").and_then(|v| v.as_str()) {
                         let keys_path = storage.join("keys.json");
                         if keys_path.exists() {
-                            let kdata = std::fs::read_to_string(&keys_path).map_err(|e| e.to_string())?;
-                            let mut keys: Vec<Value> = serde_json::from_str(&kdata).unwrap_or_default();
+                            let kdata =
+                                std::fs::read_to_string(&keys_path).map_err(|e| e.to_string())?;
+                            let mut keys: Vec<Value> =
+                                serde_json::from_str(&kdata).unwrap_or_default();
                             if let Some(ek) = enc_key {
                                 for k in keys.iter_mut() {
-                                    let _ = secure_storage::decrypt_sensitive_fields(k, ek, &["privateKey"]);
+                                    let _ = secure_storage::decrypt_sensitive_fields(
+                                        k,
+                                        ek,
+                                        &["privateKey"],
+                                    );
                                 }
                             }
-                            if let Some(key) = keys.iter().find(|k| k.get("id").and_then(|v| v.as_str()) == Some(key_id)) {
-                                jump_key_content = key.get("privateKey").and_then(|v| v.as_str()).map(|s| s.to_string());
+                            if let Some(key) = keys
+                                .iter()
+                                .find(|k| k.get("id").and_then(|v| v.as_str()) == Some(key_id))
+                            {
+                                jump_key_content = key
+                                    .get("privateKey")
+                                    .and_then(|v| v.as_str())
+                                    .map(|s| s.to_string());
                             }
                         }
                     }
@@ -185,7 +227,10 @@ impl SshBridge {
         let python_str = python_bin.to_str().unwrap_or("python3");
         let script_str = script.to_str().unwrap_or("sidecar/main.py");
 
-        eprintln!("[ssh_bridge] spawning sidecar: {} {}", python_str, script_str);
+        eprintln!(
+            "[ssh_bridge] spawning sidecar: {} {}",
+            python_str, script_str
+        );
 
         let mut cmd = Command::new(python_str);
         cmd.arg("-u")
@@ -202,7 +247,7 @@ impl SshBridge {
         if let Some(ref rj) = rules_json {
             cmd.arg("--forwarding-json").arg(rj);
         }
-        
+
         if no_shell {
             cmd.arg("--no-shell");
         }
@@ -219,7 +264,9 @@ impl SshBridge {
             cmd.arg("--jump-key-content").arg(jkc);
         }
 
-        let mut child = cmd.spawn().map_err(|e| format!("Failed to start sidecar: {}", e))?;
+        let mut child = cmd
+            .spawn()
+            .map_err(|e| format!("Failed to start sidecar: {}", e))?;
         eprintln!("[ssh_bridge] sidecar spawned, pid={:?}", child.id());
         eprintln!("[ssh_bridge] session_id={}", session_id);
 
@@ -260,14 +307,19 @@ impl SshBridge {
                         // Try to parse as JSON
                         match serde_json::from_str::<Value>(&text) {
                             Ok(msg) => {
-                                let msg_type = msg.get("type").and_then(|v| v.as_str()).unwrap_or("");
-                                let payload = msg.get("payload").and_then(|v| v.as_str()).unwrap_or("");
+                                let msg_type =
+                                    msg.get("type").and_then(|v| v.as_str()).unwrap_or("");
+                                let payload =
+                                    msg.get("payload").and_then(|v| v.as_str()).unwrap_or("");
 
                                 match msg_type {
                                     "data" => {
-                                        match base64::engine::general_purpose::STANDARD.decode(payload) {
+                                        match base64::engine::general_purpose::STANDARD
+                                            .decode(payload)
+                                        {
                                             Ok(bytes) => {
-                                                let decoded = String::from_utf8_lossy(&bytes).to_string();
+                                                let decoded =
+                                                    String::from_utf8_lossy(&bytes).to_string();
                                                 let emit_result = app.emit(
                                                     "ssh-output",
                                                     serde_json::json!({"sessionId": sid, "data": decoded}),
@@ -277,7 +329,10 @@ impl SshBridge {
                                                 }
                                             }
                                             Err(e) => {
-                                                eprintln!("[ssh_bridge] ERROR base64 decode failed: {}", e);
+                                                eprintln!(
+                                                    "[ssh_bridge] ERROR base64 decode failed: {}",
+                                                    e
+                                                );
                                             }
                                         }
                                     }
@@ -289,7 +344,8 @@ impl SshBridge {
                                                 serde_json::json!({"sessionId": sid, "data": "\r\n[Connection closed]\r\n"}),
                                             );
                                             break;
-                                        } else if let Some(err_msg) = payload.strip_prefix("error:") {
+                                        } else if let Some(err_msg) = payload.strip_prefix("error:")
+                                        {
                                             let _ = app.emit(
                                                 "ssh-output",
                                                 serde_json::json!({"sessionId": sid, "data": format!("\r\n[Error] {}\r\n", err_msg)}),
@@ -303,7 +359,11 @@ impl SshBridge {
                                 }
                             }
                             Err(e) => {
-                                eprintln!("[ssh_bridge] ERROR: failed to parse JSON: {} — raw line: {}", e, &text[..text.len().min(200)]);
+                                eprintln!(
+                                    "[ssh_bridge] ERROR: failed to parse JSON: {} — raw line: {}",
+                                    e,
+                                    &text[..text.len().min(200)]
+                                );
                             }
                         }
                     }
@@ -313,11 +373,11 @@ impl SshBridge {
                     }
                 }
             }
-            eprintln!("[ssh_bridge] reader thread ended for session {} after {} lines", sid, line_count);
-            let _ = app.emit(
-                "ssh-disconnected",
-                serde_json::json!({"sessionId": sid}),
+            eprintln!(
+                "[ssh_bridge] reader thread ended for session {} after {} lines",
+                sid, line_count
             );
+            let _ = app.emit("ssh-disconnected", serde_json::json!({"sessionId": sid}));
         });
 
         self.sessions.insert(
@@ -355,7 +415,11 @@ impl SshBridge {
         }
     }
 
-    pub async fn update_forwarding_rules(&self, session_id: &str, rules: serde_json::Value) -> Result<(), String> {
+    pub async fn update_forwarding_rules(
+        &self,
+        session_id: &str,
+        rules: serde_json::Value,
+    ) -> Result<(), String> {
         if let Some(session) = self.sessions.get(session_id) {
             let msg = serde_json::json!({
                 "type": "update_forwarding",
@@ -363,7 +427,9 @@ impl SshBridge {
             });
             let mut stdin = &session.stdin;
             let line = format!("{}\n", msg);
-            stdin.write_all(line.as_bytes()).map_err(|e| e.to_string())?;
+            stdin
+                .write_all(line.as_bytes())
+                .map_err(|e| e.to_string())?;
             stdin.flush().map_err(|e| e.to_string())?;
             Ok(())
         } else {
@@ -380,22 +446,28 @@ impl SshBridge {
                     .map_err(|e| format!("Failed to read rules: {}", e))?;
                 let all_rules: Vec<Value> = serde_json::from_str(&data)
                     .map_err(|e| format!("Failed to parse rules: {}", e))?;
-                
-                let filtered: Vec<Value> = all_rules.into_iter()
+
+                let filtered: Vec<Value> = all_rules
+                    .into_iter()
                     .filter(|r| r.get("hostId").and_then(|v| v.as_str()) == Some(&session.host_id))
                     .collect();
                 serde_json::to_value(filtered).unwrap()
             } else {
                 serde_json::json!([])
             };
-            
+
             self.update_forwarding_rules(session_id, rules_json).await
         } else {
             Err("Session not found".to_string())
         }
     }
 
-    pub async fn resize_terminal(&self, session_id: &str, cols: u16, rows: u16) -> Result<(), String> {
+    pub async fn resize_terminal(
+        &self,
+        session_id: &str,
+        cols: u16,
+        rows: u16,
+    ) -> Result<(), String> {
         if let Some(session) = self.sessions.get(session_id) {
             let msg = serde_json::json!({
                 "type": "resize",
@@ -404,7 +476,9 @@ impl SshBridge {
             });
             let mut stdin = &session.stdin;
             let line = format!("{}\n", msg);
-            stdin.write_all(line.as_bytes()).map_err(|e| e.to_string())?;
+            stdin
+                .write_all(line.as_bytes())
+                .map_err(|e| e.to_string())?;
             stdin.flush().map_err(|e| e.to_string())?;
             Ok(())
         } else {

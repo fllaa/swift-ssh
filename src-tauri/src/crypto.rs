@@ -44,8 +44,7 @@ pub fn derive_key(password: &str, salt: &[u8]) -> Result<[u8; 32], String> {
 ///
 /// Returns a base64-encoded string of `nonce || ciphertext_with_tag`.
 pub fn encrypt(plaintext: &str, key: &[u8; 32]) -> Result<String, String> {
-    let cipher = Aes256Gcm::new_from_slice(key)
-        .map_err(|e| format!("AES key error: {}", e))?;
+    let cipher = Aes256Gcm::new_from_slice(key).map_err(|e| format!("AES key error: {}", e))?;
 
     let mut nonce_bytes = [0u8; NONCE_LEN];
     rand::thread_rng().fill_bytes(&mut nonce_bytes);
@@ -76,8 +75,7 @@ pub fn decrypt(ciphertext_b64: &str, key: &[u8; 32]) -> Result<String, String> {
     let (nonce_bytes, ciphertext) = combined.split_at(NONCE_LEN);
     let nonce = Nonce::from_slice(nonce_bytes);
 
-    let cipher = Aes256Gcm::new_from_slice(key)
-        .map_err(|e| format!("AES key error: {}", e))?;
+    let cipher = Aes256Gcm::new_from_slice(key).map_err(|e| format!("AES key error: {}", e))?;
 
     let plaintext = cipher
         .decrypt(nonce, ciphertext)
@@ -91,8 +89,8 @@ pub fn decrypt(ciphertext_b64: &str, key: &[u8; 32]) -> Result<String, String> {
 pub fn create_verify_hash(password: &str, salt: &[u8]) -> Result<String, String> {
     let mut verify_key = [0u8; 32];
     // Use different params to produce a different output from the encryption key
-    let params = Params::new(19_456, 2, 1, Some(32))
-        .map_err(|e| format!("Argon2 params error: {}", e))?;
+    let params =
+        Params::new(19_456, 2, 1, Some(32)).map_err(|e| format!("Argon2 params error: {}", e))?;
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
 
     // Use a derived salt (original salt XOR'd with a constant) so the verify hash
