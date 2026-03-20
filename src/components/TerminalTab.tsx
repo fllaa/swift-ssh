@@ -7,7 +7,7 @@ import { useStore } from "../store/useStore";
 import { normalizeDistroId } from "../utils/distroIcon";
 import SSHErrorOverlay, { SSHErrorType } from "./SSHErrorOverlay";
 import LoadingScreen from "./LoadingScreen";
-import { Code, Search, Send, X, Terminal as TerminalIcon } from "lucide-react";
+import { Terminal as TerminalIcon } from "lucide-react";
 import {
   getTerminalInstance,
   setTerminalInstance,
@@ -27,24 +27,17 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
   const containerRef = useRef<HTMLDivElement>(null);
   const [connecting, setConnecting] = useState(() => !hasTerminalInstance(tabId));
   const [sshError, setSshError] = useState<{ type: SSHErrorType; message: string } | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [snippetSearch, setSnippetSearch] = useState("");
+
 
   const setTabSessionId = useStore((s) => s.setTabSessionId);
-  const { hosts, updateHost, snippets } = useStore();
+  const { hosts, updateHost } = useStore();
 
   const host = hosts.find(h => h.id === hostId);
 
   // Get terminal instance ref for use in callbacks
   const getInstanceRef = useCallback(() => getTerminalInstance(tabId), [tabId]);
 
-  // Re-fit terminal when sidebar toggles
-  useEffect(() => {
-    const instance = getInstanceRef();
-    if (instance) {
-      setTimeout(() => instance.fitAddon.fit(), 300);
-    }
-  }, [isSidebarOpen, getInstanceRef]);
+
 
   // Auto-focus terminal when dragging ends
   const isDraggingTabGlobal = useStore((s) => s.isDraggingTab);
@@ -67,8 +60,8 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
       existing.terminal.focus();
       return () => {
         // Detach but don't destroy - terminal survives across layout changes
-        if (existing.element.parentNode) {
-          existing.element.parentNode.removeChild(existing.element);
+        if (existing.element) {
+          existing.element.remove();
         }
       };
     }
@@ -244,8 +237,8 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
 
     return () => {
       // Detach but don't destroy - terminal survives across layout changes
-      if (wrapperEl.parentNode) {
-        wrapperEl.parentNode.removeChild(wrapperEl);
+      if (wrapperEl) {
+        wrapperEl.remove();
       }
     };
   }, [tabId, hostId]);
@@ -276,18 +269,7 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
     onClose();
   }, [tabId, onClose]);
 
-  const insertSnippet = (content: string) => {
-    const instance = getTerminalInstance(tabId);
-    if (instance?.sessionId) {
-      const data = content.endsWith("\n") || content.endsWith("\r")
-        ? content
-        : content + "\n";
-      invoke("send_input", {
-        sessionId: instance.sessionId,
-        data
-      }).catch(console.error);
-    }
-  };
+
 
   return (
     <div className="relative w-full h-full flex overflow-hidden">
@@ -305,80 +287,23 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
       )}
 
       {/* Terminal Area */}
-      <div className="flex-1 min-w-0 relative">
+      <div className="flex-1 min-w-0 flex flex-col relative">
+        {/* Title Bar */}
+        {!connecting && !sshError && (
+          <div className="h-10 border-b border-white/5 flex items-center justify-between px-4 shrink-0 bg-[#0f1117]/80 backdrop-blur-sm">
+            <div className="flex items-center gap-2">
+              <TerminalIcon className="w-4 h-4 text-blue-400" />
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Terminal</span>
+            </div>
+          </div>
+        )}
+
         <div
           ref={containerRef}
           onClick={() => getTerminalInstance(tabId)?.terminal.focus()}
-          className={`w-full h-full p-1 transition-opacity duration-500 ${connecting ? "opacity-0 invisible" : "opacity-100 visible"}`}
+          className={`flex-1 w-full p-1 transition-opacity duration-500 ${connecting ? "opacity-0 invisible" : "opacity-100 visible"}`}
           style={{ backgroundColor: "#0f1117" }}
         />
-
-        {/* Snippet Toggle Button */}
-        {!connecting && !sshError && (
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className={`absolute top-4 right-4 p-2.5 rounded-xl transition-all shadow-xl z-20 overflow-hidden ${
-              isSidebarOpen
-                ? "bg-blue-600 text-white"
-                : "bg-[#1e2130]/80 text-gray-400 hover:text-white hover:bg-blue-600/40 backdrop-blur-md border border-white/5"
-            }`}
-            title="Snippets Sidebar"
-          >
-            {isSidebarOpen ? <X className="w-5 h-5" /> : <Code className="w-5 h-5" />}
-          </button>
-        )}
-      </div>
-
-      {/* Right Sidebar */}
-      <div
-        className={`bg-[#1e2130]/90 backdrop-blur-xl border-l border-white/10 flex flex-col transition-all duration-300 ease-in-out overflow-hidden ${
-          isSidebarOpen ? "w-80" : "w-0 opacity-0 border-none"
-        }`}
-      >
-        <div className="p-4 border-b border-white/5 shrink-0">
-          <h3 className="text-white font-bold flex items-center gap-2 mb-3">
-            <TerminalIcon className="w-4 h-4 text-blue-400" />
-            Quick Snippets
-          </h3>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
-            <input
-              type="text"
-              placeholder="Search snippets..."
-              value={snippetSearch}
-              onChange={(e) => setSnippetSearch(e.target.value)}
-              className="w-full bg-[#0f1117] border border-white/5 focus:border-blue-500/50 rounded-lg py-1.5 pl-9 pr-3 text-xs text-white outline-none transition-all placeholder:text-gray-600"
-            />
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
-          {snippets
-            .filter(s => s.name.toLowerCase().includes(snippetSearch.toLowerCase()) || s.tags?.toLowerCase().includes(snippetSearch.toLowerCase()))
-            .map(snippet => (
-              <button
-                key={snippet.id}
-                onClick={() => insertSnippet(snippet.content)}
-                className="w-full text-left p-3 rounded-xl hover:bg-white/5 group transition-colors flex items-start gap-3"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="text-white text-sm font-semibold truncate group-hover:text-blue-400 transition-colors">
-                    {snippet.name}
-                  </div>
-                  <div className="text-gray-500 text-[10px] font-mono mt-1 opacity-80 group-hover:opacity-100 line-clamp-2 break-all">
-                    {snippet.content}
-                  </div>
-                </div>
-                <Send className="w-3.5 h-3.5 text-gray-600 group-hover:text-blue-400 mt-1 transition-colors" />
-              </button>
-            ))
-          }
-          {snippets.length === 0 && (
-            <div className="p-8 text-center">
-              <p className="text-gray-500 text-xs">No snippets saved yet.</p>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

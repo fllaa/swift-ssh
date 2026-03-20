@@ -22,6 +22,7 @@ import {
   LayoutGrid,
   List,
   Type,
+  PanelRight,
 } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import AddHostModal from "./components/AddHostModal";
@@ -36,6 +37,7 @@ import PortForwardingScreen from "./components/PortForwardingScreen";
 import AddPortForwardingModal from "./components/AddPortForwardingModal";
 import SnippetsScreen from "./components/SnippetsScreen";
 import LayoutRenderer from "./components/LayoutRenderer";
+import SnippetsSidebar from "./components/SnippetsSidebar";
 import { v4 as uuidv4 } from "uuid";
 
 export default function App() {
@@ -57,6 +59,9 @@ export default function App() {
     setGroups,
     sidebarView,
     setIsDraggingTab,
+    activePaneId,
+    snippetsOpen,
+    setSnippetsOpen,
   } = useStore();
   const [showAddHost, setShowAddHost] = useState(false);
   const [showAddGroup, setShowAddGroup] = useState(false);
@@ -351,6 +356,23 @@ export default function App() {
           </div>
         </div>
 
+        {/* Global Toolbar Area (Right side of title bar) */}
+        <div className="flex items-center h-full ml-auto pb-1 relative z-10" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
+          {activePaneId && sessions.find(s => s.tabId === activePaneId)?.type === "terminal" && (
+            <button
+              onClick={() => setSnippetsOpen(!snippetsOpen)}
+              className={`p-1.5 rounded-lg transition-all ${
+                snippetsOpen
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-600/40"
+                  : "text-slate-400 hover:text-white hover:bg-white/5"
+              }`}
+              title="Toggle snippets sidebar"
+            >
+              <PanelRight className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
         {/* Tab Context Menu */}
         {tabContextMenu && (
           <div
@@ -608,6 +630,8 @@ export default function App() {
           }}
         />
       )}
+      {/* Snippets Sidebar Overlay */}
+      <SnippetsSidebar />
     </div>
   );
 }

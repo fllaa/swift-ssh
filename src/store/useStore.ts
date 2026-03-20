@@ -120,6 +120,7 @@ interface AppState {
   portForwardingRules: PortForwardingRule[];
   forwardingSessions: Record<string, string>; // hostId -> sessionId
   snippets: Snippet[];
+  snippetsOpen: boolean;
 
   setHosts: (hosts: HostProfile[]) => void;
   addHost: (host: HostProfile) => void;
@@ -177,6 +178,7 @@ interface AppState {
   addSnippet: (snippet: Snippet) => void;
   updateSnippet: (snippet: Snippet) => void;
   removeSnippet: (id: string) => void;
+  setSnippetsOpen: (open: boolean) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -194,6 +196,7 @@ export const useStore = create<AppState>((set) => ({
   portForwardingRules: [],
   forwardingSessions: {},
   snippets: [],
+  snippetsOpen: false,
   isDraggingTab: false,
 
   setHosts: (hosts) => set({ hosts }),
@@ -375,6 +378,7 @@ export const useStore = create<AppState>((set) => ({
   removeSnippet: (id) =>
     set((s) => ({ snippets: s.snippets.filter((snip) => snip.id !== id) })),
   setIsDraggingTab: (isDragging) => set({ isDraggingTab: isDragging }),
+  setSnippetsOpen: (snippetsOpen) => set({ snippetsOpen }),
 }));
 
 // Helper to remove a sessionId from a layout and return the new layout
