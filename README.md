@@ -355,7 +355,7 @@ The Rust backend couldn't find or execute `python3`. Make sure:
 - [x] Snippet / command library
 - [x] Multi-hop / jump host support
 - [x] Session logging / export
-- [ ] Theme customization
+- [x] Theme customization
 
 ---
 

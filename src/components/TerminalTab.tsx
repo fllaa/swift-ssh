@@ -8,7 +8,6 @@ import { normalizeDistroId } from "../utils/distroIcon";
 import { logActivity } from "../lib/activityLog";
 import SSHErrorOverlay, { SSHErrorType } from "./SSHErrorOverlay";
 import LoadingScreen from "./LoadingScreen";
-import { Terminal as TerminalIcon } from "lucide-react";
 import {
   getTerminalInstance,
   setTerminalInstance,
@@ -31,7 +30,7 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
 
 
   const setTabSessionId = useStore((s) => s.setTabSessionId);
-  const { hosts, updateHost } = useStore();
+  const { hosts, updateHost, settings } = useStore();
 
   const host = hosts.find(h => h.id === hostId);
 
@@ -74,7 +73,7 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
     containerRef.current.appendChild(wrapperEl);
 
     const term = new Terminal({
-      theme: {
+      theme: settings.terminalTheme || {
         background: "#0f1117",
         foreground: "#e0e0e0",
         cursor: "#528bff",
@@ -96,8 +95,8 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
         brightCyan: "#56b6c2",
         brightWhite: "#ffffff",
       },
-      fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
-      fontSize: 14,
+      fontFamily: settings.terminalFontFamily || "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+      fontSize: settings.terminalFontSize || 14,
       lineHeight: 1.2,
       cursorBlink: true,
       cursorStyle: "bar",
@@ -265,6 +264,20 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
     };
   }, [tabId, hostId]);
 
+  // Update terminal options when settings change
+  useEffect(() => {
+    const instance = getTerminalInstance(tabId);
+    if (instance && settings.terminalTheme) {
+      // Re-assign options to ensure xterm.js detects the change
+      instance.terminal.options.theme = { ...settings.terminalTheme };
+      instance.terminal.options.fontSize = settings.terminalFontSize || 14;
+      instance.terminal.options.fontFamily = settings.terminalFontFamily || "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace";
+      
+      // Force a re-fit after font changes
+      requestAnimationFrame(() => instance.fitAddon.fit());
+    }
+  }, [tabId, settings.terminalTheme, settings.terminalFontSize, settings.terminalFontFamily]);
+
   // Handle explicit reconnect
   const handleReconnect = useCallback(() => {
     setSshError(null);
@@ -311,20 +324,12 @@ export default function TerminalTab({ tabId, hostId, onEditHost, onClose }: Term
       {/* Terminal Area */}
       <div className="flex-1 min-w-0 flex flex-col relative">
         {/* Title Bar */}
-        {!connecting && !sshError && (
-          <div className="h-10 border-b border-white/5 flex items-center justify-between px-4 shrink-0 bg-[#0f1117]/80 backdrop-blur-sm">
-            <div className="flex items-center gap-2">
-              <TerminalIcon className="w-4 h-4 text-blue-400" />
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Terminal</span>
-            </div>
-          </div>
-        )}
 
         <div
           ref={containerRef}
           onClick={() => getTerminalInstance(tabId)?.terminal.focus()}
           className={`flex-1 w-full p-1 transition-opacity duration-500 ${connecting ? "opacity-0 invisible" : "opacity-100 visible"}`}
-          style={{ backgroundColor: "#0f1117" }}
+          style={{ backgroundColor: settings.terminalTheme?.background || "#0f1117" }}
         />
       </div>
     </div>

@@ -193,6 +193,10 @@ export default function App() {
         }
       },
     );
+    const unlistenSettings = listen<any>("settings-updated", (event) => {
+      useStore.getState().setSettings(event.payload);
+    });
+
     const handleGlobalReset = () => {
       if (useStore.getState().isDraggingTab) {
         setIsDraggingTab(false);
@@ -209,6 +213,7 @@ export default function App() {
 
     return () => {
       unlistenDisconnect.then((fn) => fn());
+      unlistenSettings.then((fn) => fn());
       globalThis.removeEventListener("dragend", handleGlobalReset);
       globalThis.removeEventListener("click", handleGlobalReset);
       globalThis.removeEventListener("keydown", handleKeyDownGlobal);

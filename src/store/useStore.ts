@@ -77,9 +77,189 @@ export interface LogEntry {
   metadata?: Record<string, unknown>;
 }
 
+export interface TerminalTheme {
+  background: string;
+  foreground: string;
+  cursor: string;
+  selectionBackground: string;
+  black: string;
+  red: string;
+  green: string;
+  yellow: string;
+  blue: string;
+  magenta: string;
+  cyan: string;
+  white: string;
+  brightBlack: string;
+  brightRed: string;
+  brightGreen: string;
+  brightYellow: string;
+  brightBlue: string;
+  brightMagenta: string;
+  brightCyan: string;
+  brightWhite: string;
+}
+
+export const TERMINAL_THEMES: Record<string, { name: string; theme: TerminalTheme }> = {
+  default: {
+    name: "SwiftSSH Dark",
+    theme: {
+      background: "#0f1117",
+      foreground: "#e0e0e0",
+      cursor: "#528bff",
+      selectionBackground: "#3a3f55",
+      black: "#1e2130",
+      red: "#e06c75",
+      green: "#98c379",
+      yellow: "#e5c07b",
+      blue: "#61afef",
+      magenta: "#c678dd",
+      cyan: "#56b6c2",
+      white: "#abb2bf",
+      brightBlack: "#5c6370",
+      brightRed: "#e06c75",
+      brightGreen: "#98c379",
+      brightYellow: "#e5c07b",
+      brightBlue: "#61afef",
+      brightMagenta: "#c678dd",
+      brightCyan: "#56b6c2",
+      brightWhite: "#ffffff",
+    },
+  },
+  dracula: {
+    name: "Dracula",
+    theme: {
+      background: "#282a36",
+      foreground: "#f8f8f2",
+      cursor: "#f8f8f2",
+      selectionBackground: "#44475a",
+      black: "#21222c",
+      red: "#ff5555",
+      green: "#50fa7b",
+      yellow: "#f1fa8c",
+      blue: "#bd93f9",
+      magenta: "#ff79c6",
+      cyan: "#8be9fd",
+      white: "#f8f8f2",
+      brightBlack: "#6272a4",
+      brightRed: "#ff6e6e",
+      brightGreen: "#69ff94",
+      brightYellow: "#ffffa5",
+      brightBlue: "#d6acff",
+      brightMagenta: "#ff92df",
+      brightCyan: "#a4ffff",
+      brightWhite: "#ffffff",
+    },
+  },
+  oneDark: {
+    name: "One Dark Indigo",
+    theme: {
+      background: "#282c34",
+      foreground: "#abb2bf",
+      cursor: "#528bff",
+      selectionBackground: "#3e4451",
+      black: "#282c34",
+      red: "#e06c75",
+      green: "#98c379",
+      yellow: "#e5c07b",
+      blue: "#61afef",
+      magenta: "#c678dd",
+      cyan: "#56b6c2",
+      white: "#abb2bf",
+      brightBlack: "#5c6370",
+      brightRed: "#e06c75",
+      brightGreen: "#98c379",
+      brightYellow: "#e5c07b",
+      brightBlue: "#61afef",
+      brightMagenta: "#c678dd",
+      brightCyan: "#56b6c2",
+      brightWhite: "#ffffff",
+    },
+  },
+  nord: {
+    name: "Nord",
+    theme: {
+      background: "#2e3440",
+      foreground: "#d8dee9",
+      cursor: "#d8dee9",
+      selectionBackground: "#434c5e",
+      black: "#3b4252",
+      red: "#bf616a",
+      green: "#a3be8c",
+      yellow: "#ebcb8b",
+      blue: "#81a1c1",
+      magenta: "#b48ead",
+      cyan: "#88c0d0",
+      white: "#e5e9f0",
+      brightBlack: "#4c566a",
+      brightRed: "#bf616a",
+      brightGreen: "#a3be8c",
+      brightYellow: "#ebcb8b",
+      brightBlue: "#81a1c1",
+      brightMagenta: "#b48ead",
+      brightCyan: "#8fbcbb",
+      brightWhite: "#eceff4",
+    },
+  },
+  ayu: {
+    name: "Ayu Mirage",
+    theme: {
+      background: "#1f2430",
+      foreground: "#cbccc6",
+      cursor: "#ffcc66",
+      selectionBackground: "#343f4c",
+      black: "#191e2a",
+      red: "#f28779",
+      green: "#bae67e",
+      yellow: "#ffd580",
+      blue: "#73d0ff",
+      magenta: "#d4bfff",
+      cyan: "#95e6cb",
+      white: "#cbccc6",
+      brightBlack: "#707a8c",
+      brightRed: "#f28779",
+      brightGreen: "#bae67e",
+      brightYellow: "#ffd580",
+      brightBlue: "#73d0ff",
+      brightMagenta: "#d4bfff",
+      brightCyan: "#95e6cb",
+      brightWhite: "#ffffff",
+    },
+  },
+  solarizedDark: {
+    name: "Solarized Dark",
+    theme: {
+      background: "#002b36",
+      foreground: "#839496",
+      cursor: "#839496",
+      selectionBackground: "#073642",
+      black: "#073642",
+      red: "#dc322f",
+      green: "#859900",
+      yellow: "#b58900",
+      blue: "#268bd2",
+      magenta: "#d33682",
+      cyan: "#2aa198",
+      white: "#eee8d5",
+      brightBlack: "#002b36",
+      brightRed: "#cb4b16",
+      brightGreen: "#586e75",
+      brightYellow: "#657b83",
+      brightBlue: "#839496",
+      brightMagenta: "#6c71c4",
+      brightCyan: "#93a1a1",
+      brightWhite: "#fdf6e3",
+    },
+  },
+};
+
 export interface AppSettings {
   logRetentionLimit: number;
   logRetentionDays: number | null;
+  terminalTheme: TerminalTheme;
+  terminalFontSize: number;
+  terminalFontFamily: string;
+  terminalThemeId: string;
 }
 
 export interface TabSession {
@@ -234,7 +414,14 @@ export const useStore = create<AppState>((set) => ({
   snippetsOpen: false,
   history: [],
   logs: [],
-  settings: { logRetentionLimit: 500, logRetentionDays: null },
+  settings: {
+    logRetentionLimit: 500,
+    logRetentionDays: null,
+    terminalTheme: TERMINAL_THEMES.default.theme,
+    terminalFontSize: 14,
+    terminalFontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+    terminalThemeId: "default",
+  },
   isDraggingTab: false,
 
   setHosts: (hosts) => set({ hosts }),
@@ -434,7 +621,10 @@ export const useStore = create<AppState>((set) => ({
       return { logs: newLogs };
     }),
   clearLogs: () => set({ logs: [] }),
-  setSettings: (settings) => set({ settings }),
+  setSettings: (newSettings) =>
+    set((s) => ({
+      settings: { ...s.settings, ...newSettings },
+    })),
   setIsDraggingTab: (isDragging) => set({ isDraggingTab: isDragging }),
 }));
 

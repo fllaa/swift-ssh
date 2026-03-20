@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useStore } from "../store/useStore";
+import { useStore, TERMINAL_THEMES } from "../store/useStore";
 import { logActivity } from "../lib/activityLog";
 import {
   Key,
@@ -244,10 +244,11 @@ export default function SettingsScreen() {
 
                 <div className="space-y-6 max-w-md">
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">
+                    <label htmlFor="log-limit" className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">
                       Maximum Log Entries
                     </label>
                     <select
+                      id="log-limit"
                       value={logRetentionLimit}
                       onChange={(e) => setLogRetentionLimit(Number(e.target.value))}
                       className="w-full bg-navy-sidebar border border-white/10 rounded-xl px-4 py-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all text-slate-100 appearance-none cursor-pointer"
@@ -263,10 +264,11 @@ export default function SettingsScreen() {
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">
+                    <label htmlFor="log-days" className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">
                       Auto-clear After
                     </label>
                     <select
+                      id="log-days"
                       value={logRetentionDays ?? "never"}
                       onChange={(e) =>
                         setLogRetentionDays(
@@ -302,7 +304,141 @@ export default function SettingsScreen() {
               </div>
             )}
 
-            {activeTab !== "security" && activeTab !== "general" && (
+            {activeTab === "appearance" && (
+              <div className="space-y-12 pb-20">
+                <div>
+                  <h2 className="text-2xl font-bold flex items-center gap-3">
+                    <div className="p-2 bg-purple-600/10 rounded-lg text-purple-400 border border-purple-500/20">
+                      <Monitor className="w-5 h-5" />
+                    </div>
+                    Appearance
+                  </h2>
+                  <p className="text-slate-400 mt-3 leading-relaxed max-w-lg">
+                    Customize your terminal's visual style, including color schemes, fonts, and layout.
+                  </p>
+                </div>
+
+                {/* Terminal Theme Section */}
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-200 uppercase tracking-widest">Terminal Theme</h3>
+                    <p className="text-xs text-slate-500 mt-1">Select a color preset for all terminal sessions.</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    {Object.entries(TERMINAL_THEMES).map(([id, { name, theme }]) => {
+                      const isSelected = settings.terminalThemeId === id;
+                      return (
+                        <button
+                          key={id}
+                          onClick={() => {
+                            const newSettings = { 
+                              ...settings, 
+                              terminalTheme: theme, 
+                              terminalThemeId: id 
+                            };
+                            setSettings(newSettings);
+                            invoke("save_settings", { settings: newSettings });
+                          }}
+                          className={`group relative flex flex-col items-start p-4 rounded-2xl border-2 transition-all duration-300 text-left overflow-hidden ${
+                            isSelected 
+                              ? "border-blue-500 bg-blue-500/5 ring-1 ring-blue-500/20 shadow-lg shadow-blue-500/10" 
+                              : "border-white/5 bg-white/2 hover:border-white/20 hover:bg-white/4"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full mb-3">
+                            <span className={`text-sm font-semibold transition-colors ${isSelected ? "text-blue-400" : "text-slate-300"}`}>
+                              {name}
+                            </span>
+                            {isSelected && (
+                              <div className="bg-blue-500 rounded-full p-1">
+                                <Check className="w-3 h-3 text-white" />
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Mini Preview */}
+                          <div 
+                            className="w-full h-16 rounded-lg p-2 flex flex-col gap-1 overflow-hidden" 
+                            style={{ backgroundColor: theme.background }}
+                          >
+                            <div className="flex gap-1.5">
+                              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: theme.red }}></div>
+                              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: theme.green }}></div>
+                              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: theme.yellow }}></div>
+                            </div>
+                            <div className="h-2 w-3/4 rounded-sm" style={{ backgroundColor: theme.foreground, opacity: 0.3 }}></div>
+                            <div className="h-2 w-1/2 rounded-sm" style={{ backgroundColor: theme.blue, opacity: 0.5 }}></div>
+                            <div className="h-2 w-2/3 rounded-sm" style={{ backgroundColor: theme.magenta, opacity: 0.4 }}></div>
+                          </div>
+
+                          {/* Hover Overlay */}
+                          {!isSelected && (
+                            <div className="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Font Settings */}
+                <div className="space-y-8 pt-4">
+                  <div className="border-t border-white/5 pt-8">
+                    <h3 className="text-sm font-bold text-slate-200 uppercase tracking-widest">Typography</h3>
+                    <p className="text-xs text-slate-500 mt-1">Configure terminal font family and scale.</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Font Size */}
+                    <div className="space-y-3">
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">
+                        Font Size
+                      </label>
+                      <div className="flex items-center gap-4">
+                        <input
+                          type="range"
+                          min="10"
+                          max="24"
+                          step="1"
+                          value={settings.terminalFontSize}
+                          onChange={(e) => {
+                            const newSettings = { ...settings, terminalFontSize: Number(e.target.value) };
+                            setSettings(newSettings);
+                            invoke("save_settings", { settings: newSettings });
+                          }}
+                          className="flex-1 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                        />
+                        <span className="text-sm font-mono text-slate-300 w-8 text-center">{settings.terminalFontSize}px</span>
+                      </div>
+                    </div>
+
+                    {/* Font Family */}
+                    <div className="space-y-3">
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">
+                        Font Family
+                      </label>
+                      <select
+                        value={settings.terminalFontFamily}
+                        onChange={(e) => {
+                          const newSettings = { ...settings, terminalFontFamily: e.target.value };
+                          setSettings(newSettings);
+                          invoke("save_settings", { settings: newSettings });
+                        }}
+                        className="w-full bg-navy-sidebar border border-white/10 rounded-xl px-4 py-3 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all text-slate-100 appearance-none cursor-pointer"
+                      >
+                        <option value="'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace">JetBrains Mono</option>
+                        <option value="'Fira Code', 'JetBrains Mono', monospace">Fira Code</option>
+                        <option value="'Cascadia Code', 'Consolas', monospace">Cascadia Code</option>
+                        <option value="Menlo, Monaco, 'Courier New', monospace">System Default</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab !== "security" && activeTab !== "general" && activeTab !== "appearance" && (
               <div className="flex flex-col items-center justify-center h-full text-center space-y-4 py-20">
                 <div className="p-6 bg-white/5 rounded-full text-slate-500">
                   <Settings className="w-12 h-12 animate-pulse" />

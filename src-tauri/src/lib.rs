@@ -8,6 +8,7 @@ use sftp_bridge::SftpBridge;
 use ssh_bridge::SshBridge;
 use std::sync::Arc;
 use tauri::Manager;
+use tauri::Emitter;
 use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tokio::sync::Mutex;
 
@@ -593,12 +594,15 @@ async fn get_settings() -> Result<serde_json::Value, String> {
 }
 
 #[tauri::command]
-async fn save_settings(settings: serde_json::Value) -> Result<(), String> {
+async fn save_settings(app: tauri::AppHandle, settings: serde_json::Value) -> Result<(), String> {
     let storage = ssh_bridge::storage_dir();
     std::fs::create_dir_all(&storage).map_err(|e| e.to_string())?;
     let path = storage.join("settings.json");
     let data = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
     std::fs::write(&path, data).map_err(|e| e.to_string())?;
+    
+    // Emit event to all windows
+    let _ = app.emit("settings-updated", settings);
     Ok(())
 }
 
