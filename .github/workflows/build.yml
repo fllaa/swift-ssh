@@ -1,0 +1,195 @@
+name: Build & Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g., 0.2.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos
+            os: macos-latest
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+            tauri-args: "--target universal-apple-darwin"
+          - platform: windows
+            os: windows-latest
+            rust-targets: x86_64-pc-windows-msvc
+            tauri-args: ""
+          - platform: linux
+            os: ubuntu-22.04
+            rust-targets: x86_64-unknown-linux-gnu
+            tauri-args: ""
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Linux system dependencies ──
+      - name: Install Linux system dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            libgtk-3-dev
+
+      # ── Rust ──
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # ── Bun ──
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      # ── Python sidecar ──
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache Python sidecar venv
+        uses: actions/cache@v4
+        with:
+          path: sidecar/.venv
+          key: ${{ runner.os }}-sidecar-venv-${{ hashFiles('sidecar/requirements.txt') }}
+
+      - name: Create sidecar venv and install deps (Unix)
+        if: matrix.platform != 'windows'
+        run: |
+          python3 -m venv sidecar/.venv
+          sidecar/.venv/bin/pip install --upgrade pip
+          sidecar/.venv/bin/pip install -r sidecar/requirements.txt
+
+      - name: Create sidecar venv and install deps (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          python -m venv sidecar/.venv
+          sidecar/.venv/Scripts/pip install --upgrade pip
+          sidecar/.venv/Scripts/pip install -r sidecar/requirements.txt
+
+      # ── Version injection ──
+      - name: Set version (Unix)
+        if: matrix.platform != 'windows'
+        run: |
+          # package.json
+          jq '.version = "${{ inputs.version }}"' package.json > tmp.json && mv tmp.json package.json
+          # tauri.conf.json
+          jq '.version = "${{ inputs.version }}"' src-tauri/tauri.conf.json > tmp.json && mv tmp.json src-tauri/tauri.conf.json
+          # Cargo.toml — only replace the first version line (package version)
+          sed -i'' -e '0,/^version = ".*"/s//version = "${{ inputs.version }}"/' src-tauri/Cargo.toml
+
+      - name: Set version (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          # package.json
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $pkg.version = "${{ inputs.version }}"
+          $pkg | ConvertTo-Json -Depth 10 | Set-Content package.json
+
+          # tauri.conf.json
+          $tauri = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          $tauri.version = "${{ inputs.version }}"
+          $tauri | ConvertTo-Json -Depth 10 | Set-Content src-tauri/tauri.conf.json
+
+          # Cargo.toml
+          $cargo = Get-Content src-tauri/Cargo.toml -Raw
+          $cargo = $cargo -replace '(?m)^version = ".*?"', "version = `"${{ inputs.version }}`""
+          # Only replace the first occurrence (package version)
+          Set-Content src-tauri/Cargo.toml $cargo
+
+      # ── Build ──
+      - name: Build Tauri app
+        run: bun run tauri build ${{ matrix.tauri-args }}
+
+      # ── macOS: inject sidecar & re-create DMG ──
+      - name: Inject sidecar into macOS bundle
+        if: matrix.platform == 'macos'
+        run: |
+          APP_DIR="src-tauri/target/universal-apple-darwin/release/bundle/macos/SwiftSSH.app"
+          cp -r sidecar "$APP_DIR/Contents/MacOS/sidecar"
+          find "$APP_DIR/Contents/MacOS/sidecar" -name "__pycache__" -type d -exec rm -rf {} +
+          find "$APP_DIR/Contents/MacOS/sidecar" -name ".venv" -path "*/sidecar/.venv" -prune -exec find {} -name "__pycache__" -type d -exec rm -rf {} + \;
+
+          # Re-create DMG with sidecar included
+          DMG_NAME="SwiftSSH_${{ inputs.version }}_macos_universal.dmg"
+          hdiutil create -volname "SwiftSSH" -srcfolder "$APP_DIR" -ov -format UDZO "$DMG_NAME"
+
+      - name: Upload macOS artifacts
+        if: matrix.platform == 'macos'
+        uses: actions/upload-artifact@v4
+        with:
+          name: SwiftSSH-macos-universal
+          path: SwiftSSH_*.dmg
+
+      # ── Windows: create portable zip ──
+      - name: Package Windows distribution
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $outDir = "SwiftSSH-windows"
+          New-Item -ItemType Directory -Path $outDir -Force
+          Copy-Item "src-tauri/target/release/SwiftSSH.exe" "$outDir/"
+          Copy-Item -Recurse "sidecar" "$outDir/sidecar"
+          Get-ChildItem -Path "$outDir/sidecar" -Recurse -Directory -Filter "__pycache__" | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+          Compress-Archive -Path "$outDir/*" -DestinationPath "SwiftSSH_${{ inputs.version }}_windows_x64.zip"
+
+      - name: Upload Windows artifacts
+        if: matrix.platform == 'windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: SwiftSSH-windows-x64
+          path: |
+            SwiftSSH_*.zip
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/nsis/*.exe
+
+      # ── Linux: create portable tarball ──
+      - name: Package Linux distribution
+        if: matrix.platform == 'linux'
+        run: |
+          mkdir -p SwiftSSH-linux
+          # Tauri uses lowercase product name on Linux
+          cp "src-tauri/target/release/swift-ssh" "SwiftSSH-linux/" 2>/dev/null \
+            || cp "src-tauri/target/release/swiftssh" "SwiftSSH-linux/" 2>/dev/null \
+            || cp src-tauri/target/release/swift* "SwiftSSH-linux/"
+          cp -r sidecar SwiftSSH-linux/sidecar
+          find SwiftSSH-linux/sidecar -name "__pycache__" -type d -exec rm -rf {} +
+          tar czf "SwiftSSH_${{ inputs.version }}_linux_x64.tar.gz" SwiftSSH-linux/
+
+      - name: Upload Linux artifacts
+        if: matrix.platform == 'linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: SwiftSSH-linux-x64
+          path: |
+            SwiftSSH_*.tar.gz
+            src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/appimage/*.AppImage
