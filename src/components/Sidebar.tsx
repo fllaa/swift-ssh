@@ -1,5 +1,6 @@
 import { useStore, HostProfile } from "../store/useStore";
 import { Server, Key, Shuffle, Terminal, FileText } from "lucide-react";
+import pkg from "../../package.json";
 
 interface SidebarProps {
   readonly onAddHost: () => void;
@@ -75,12 +76,8 @@ export default function Sidebar({ onAddHost, onEditHost }: SidebarProps) {
 
       {/* Sidebar Footer */}
       <div className="p-4 border-t border-slate-800">
-        <div className="flex items-center justify-between text-xs text-slate-500">
-          <span>v2.4.1 Stable</span>
-          <div className="flex items-center space-x-1">
-            <div className="w-2 h-2 rounded-full bg-green-500"></div>
-            <span>Connected</span>
-          </div>
+        <div className="flex items-center text-xs text-slate-500">
+          <span>v{pkg.version} dev</span>
         </div>
       </div>
     </aside>
