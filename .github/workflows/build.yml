@@ -136,7 +136,6 @@ jobs:
           APP_DIR="src-tauri/target/universal-apple-darwin/release/bundle/macos/SwiftSSH.app"
           cp -r sidecar "$APP_DIR/Contents/MacOS/sidecar"
           find "$APP_DIR/Contents/MacOS/sidecar" -name "__pycache__" -type d -exec rm -rf {} +
-          find "$APP_DIR/Contents/MacOS/sidecar" -name ".venv" -path "*/sidecar/.venv" -prune -exec find {} -name "__pycache__" -type d -exec rm -rf {} + \;
 
           # Re-create DMG with sidecar included
           DMG_NAME="SwiftSSH_${{ inputs.version }}_macos_universal.dmg"
