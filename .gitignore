@@ -8,3 +8,4 @@ sidecar/.venv/
 
 # Claude
 .claude/*.local.*
+.gstack/
